@@ -236,7 +236,7 @@ export class TrainerEngine {
     this.ensureCtx();
     this.dropMic();
     this.source = 'synth';
-    this.emitSource('テスト音は自動で演奏します。わざとズレ、ミュート、押さえ間違いを混ぜるので、採点の動きを確認できます。', false);
+    this.emitSource('テスト音が自動で演奏します。わざとズレやミュートを混ぜています。', false);
   }
 
   private emitSource(message: string | null, warn: boolean): void {

@@ -137,11 +137,11 @@ export default function App() {
         onPlayOne={() => engine.playCurrentChord()}
       />
 
+      <LiveChroma engine={engine} chord={chord} />
+
       <Controls settings={settings} patch={patch} running={running} onToggle={onToggle} />
 
       <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
-
-      <LiveChroma engine={engine} chord={chord} />
 
       <SummaryPanel summary={summary} stopped={finished} />
 

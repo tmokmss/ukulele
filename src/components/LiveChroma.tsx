@@ -3,7 +3,7 @@ import type { TrainerEngine } from '../audio/engine';
 import { NOTE, TEMPL } from '../core/chords';
 import { useFrame } from '../hooks/useEngine';
 
-const BAR_MAX_PX = 72;
+const BAR_MAX_PX = 52;
 
 /** 12音階のエネルギーと、いちばん近いコード。どちらも毎フレーム更新する */
 export function LiveChroma({ engine, chord }: { engine: TrainerEngine; chord: string }) {
