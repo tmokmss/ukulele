@@ -30,12 +30,16 @@ export const DEFAULT_SETTINGS: Settings = {
   calibMs: null,
   sens: 6,
   prog: ['C', 'Am', 'F', 'G7'],
+  mode: 'drill',
+  songId: '',
 };
 
 export function loadSettings(): Settings {
   const s: Settings = { ...DEFAULT_SETTINGS, ...read<Partial<Settings>>(SETTINGS_KEY, {}) };
   const prog = (Array.isArray(s.prog) ? s.prog : []).filter((c) => CHORDS[c]);
   s.prog = prog.length ? prog : [...DEFAULT_SETTINGS.prog];
+  if (s.mode !== 'score') s.mode = 'drill';
+  if (typeof s.songId !== 'string') s.songId = '';
   return s;
 }
 

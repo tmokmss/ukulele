@@ -1,4 +1,4 @@
-export type SegOption<T> = { value: T; label: string };
+export type SegOption<T> = { value: T; label: string; disabled?: boolean };
 
 type Props<T> = {
   options: SegOption<T>[];
@@ -17,7 +17,7 @@ export function Segmented<T extends string | number | boolean>({ options, value,
           key={String(o.value)}
           type="button"
           aria-pressed={o.value === value}
-          disabled={disabled}
+          disabled={disabled || o.disabled}
           onClick={() => onChange(o.value)}
         >
           {o.label}

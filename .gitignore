@@ -5,3 +5,7 @@ dist/
 
 # playwright-cli の作業ファイル
 .playwright-cli/
+
+# Claude Code の作業ディレクトリ (スキルは追跡する)
+.claude/worktrees/
+.claude/settings.local.json

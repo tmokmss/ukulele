@@ -42,9 +42,6 @@ button:disabled{opacity:.45;cursor:default}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;gap:2px;background:var(--surface)}
 .seg button{border:0;background:none;padding:7px 14px;border-radius:999px;color:var(--muted);font-weight:500;font-size:14px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
-.meter{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);flex:1;min-width:140px}
-.meter .bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
-.meter .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:3px}
 
 /* stage */
 .stage{
@@ -77,6 +74,11 @@ button:disabled{opacity:.45;cursor:default}
 .ct.played{opacity:.9}
 .ct.due{border-color:var(--accent);border-width:2.5px;box-shadow:0 5px 14px rgba(14,133,133,.25)}
 .ct.due .nm{color:var(--accent);font-size:21px}
+/* 楽譜が決めているストローク。レーンの下端に置いて、カードとぶつけない */
+.chordlane .hit{position:absolute;bottom:2px;z-index:2;transform:translateX(-50%);
+  font-size:15px;font-weight:700;line-height:1;font-style:normal;color:var(--muted);opacity:.85}
+.chordlane .hit.h-D{color:var(--accent);font-size:18px}
+.chordlane .hit.h-x{font-size:12px}
 /* 採点はゲートを通過したカードに出す。結果が付いたものは薄くしない */
 .ct.judged{background:var(--surface);opacity:.92}
 .ct .vd{font-size:9.5px;font-weight:800;line-height:1.2;white-space:nowrap;letter-spacing:-.02em}
@@ -109,6 +111,8 @@ button:disabled{opacity:.45;cursor:default}
 .lane-dot{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--muted);transition:opacity .4s}
 .lane-dot.big{width:15px;height:15px;margin:-7.5px 0 0 -7.5px}
 .lane-dot.good{background:var(--good)} .lane-dot.warn{background:var(--sun)} .lane-dot.miss{background:var(--miss)}
+/* どの打点にも寄らなかったストローク。当たった点と区別して中抜きにする */
+.lane-dot.extra{background:none;border:2px solid var(--miss)}
 
 .feedback{margin-top:12px;min-height:3.3em;font-size:14px}
 .feedback .t{font-weight:700}
@@ -158,5 +162,31 @@ select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px soli
 .spark{width:100%;height:54px;display:block;margin-top:8px}
 .spark polyline{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .spark circle{fill:var(--accent)}
+
+/* songs: リポジトリの楽譜をタイトルで選ぶ */
+.songs .msg{white-space:pre-line}
+
+/* 絞り込みつきの択一 (Radix Popover + cmdk)。見た目はこのファイルのトークンで作る */
+.combo-trigger{display:flex;align-items:center;gap:10px;width:100%;margin-top:4px;
+  padding:11px 14px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);
+  font-size:15px;font-weight:700;text-align:left}
+.combo-trigger .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combo-trigger .v.ph{color:var(--muted);font-weight:500}
+.combo-trigger .caret{color:var(--muted);font-size:12px;flex:none}
+.combo-trigger[aria-expanded="true"]{border-color:var(--accent)}
+
+.combo-pop{width:var(--radix-popover-trigger-width);max-height:min(340px,var(--radix-popover-content-available-height));
+  background:var(--surface);border:1.5px solid var(--line);border-radius:16px;overflow:hidden;
+  box-shadow:0 12px 30px rgba(0,0,0,.18);z-index:20}
+.combo-input{width:100%;border:0;border-bottom:1.5px solid var(--line);background:none;color:var(--ink);
+  font:inherit;font-size:14px;padding:11px 14px;outline:none}
+.combo-input::placeholder{color:var(--muted)}
+.combo-list{max-height:280px;overflow-y:auto;padding:6px;overscroll-behavior:contain}
+.combo-item{display:block;padding:9px 10px;border-radius:11px;cursor:pointer}
+.combo-item .t{display:block;font-weight:700;font-size:14.5px}
+.combo-item .t b{color:var(--accent)}
+.combo-item .m{display:block;font-size:11.5px;color:var(--muted);margin-top:1px;line-height:1.45}
+.combo-item[data-selected="true"]{background:var(--bg)}
+.combo-empty{padding:14px;font-size:13px;color:var(--muted);text-align:center}
 
 @media (prefers-reduced-motion: reduce){ *{transition:none !important} }

@@ -9,14 +9,25 @@
  */
 import { TEMPL } from '../core/chords';
 import { computeChroma, scoreChords } from '../core/chroma';
-import type { SegmentResult, Settings, SourceKind } from '../core/types';
+import {
+  firstHitBeat,
+  hitsBefore,
+  isSlotStart,
+  matchStroke,
+  placeSlot,
+  slotIndexAt,
+  type PlanEnd,
+  type Timeline,
+} from '../core/timeline';
+import type { RhythmTally, SegmentResult, SessionResult, Settings, SourceKind, TickInfo } from '../core/types';
 
 export const COUNT_IN = 4;
 /** オンセット検出に使う帯域。クリック音 (2000/2600Hz) を避けてある */
 const ONSET_LO_HZ = 240;
 const ONSET_HI_HZ = 1300;
 
-const MIC_OK = 'マイクにつながりました。ウクレレを鳴らすと下のグラフが動きます。';
+/** つながったあとに残す文言はない。動き出していないときだけ、やることを伝える */
+const MIC_SUSPENDED = 'マイクにつながりました。画面を一度タップすると動き始めます。';
 
 /**
  * 1コードぶんの音を聞く長さ (秒)。
@@ -28,12 +39,23 @@ const LISTEN_SEC = 1.0;
 
 export type SourceState = { source: SourceKind; message: string | null; warn: boolean };
 
-/** 画面の見出しに出す文字列。コードそのものはタイムライン側が持つ */
-export type TickInfo = { phase: string };
+/**
+ * 1回ぶんの練習の段取り。何をどの速さで、どこまでやるか。
+ * 進行の繰り返しか楽譜かは Timeline が持っているので、エンジンは区別しない
+ */
+export type Plan = {
+  tl: Timeline;
+  bpm: number;
+  /** 終わり。null は「止めるまで」 */
+  end: PlanEnd | null;
+  /**
+   * コードまで採点するか。false だとクロマ用の大きい FFT を回さず、
+   * ストロークのタイミングだけを見る (速い曲では窓が足りないので、そもそも判定できない)
+   */
+  chordJudge: boolean;
+};
 
 export type FrameInfo = {
-  /** 入力レベル 0..1 */
-  level: number;
   /** 平滑化したクロマ (長さ12)。毎フレーム上書きされるので保持しないこと */
   live: Float32Array;
   liveMax: number;
@@ -47,7 +69,12 @@ export type FrameInfo = {
   pos: number | null;
 };
 
-export type OnsetInfo = { ms: number; isChange: boolean };
+export type OnsetInfo = {
+  ms: number;
+  isChange: boolean;
+  /** どの打点にも寄らなかったストローク。楽譜がストロークを指定しているときだけ立つ */
+  extra?: boolean;
+};
 
 type EventMap = {
   source: SourceState;
@@ -57,17 +84,20 @@ type EventMap = {
   tick: TickInfo;
   onset: OnsetInfo;
   result: SegmentResult;
-  end: SegmentResult[];
+  end: SessionResult;
 };
 
 type Run = {
+  plan: Plan;
   t0: number;
   beatDur: number;
-  segDur: number;
-  endSeg: number | null;
-  endK: number | null;
   nextK: number;
-  beatHits: Map<number, number>;
+  /** 拾えたストロークのズレ。キーは合わせにいった拍 (打点があればその位置) */
+  offs: Map<number, number>;
+  /** 同じ位置の音の強さ */
+  levels: Map<number, number>;
+  /** どの打点にも寄らなかったストロークの数 */
+  extra: number;
   acc: Map<number, { sum: Float32Array; n: number }>;
   finalized: number;
   results: SegmentResult[];
@@ -190,7 +220,7 @@ export class TrainerEngine {
       void ctx.resume().then(() => {
         if (ctx.state !== 'running') return;
         this.detachResume?.();
-        if (this.source === 'mic') this.emitSource(MIC_OK, false);
+        if (this.source === 'mic') this.emitSource(null, false);
       });
     };
     window.addEventListener('pointerdown', onGesture);
@@ -260,7 +290,7 @@ export class TrainerEngine {
         const est = ((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + inLat + 0.03) * 1000;
         this.emit('calib', Math.min(300, Math.max(0, Math.round(est / 5) * 5)));
       }
-      this.emitSource(ctx.state === 'running' ? MIC_OK : `${MIC_OK} 画面を一度タップすると動き始めます。`, false);
+      this.emitSource(ctx.state === 'running' ? null : MIC_SUSPENDED, false);
     } catch (err) {
       if (gen !== this.generation) return;
       this.dropMic();
@@ -300,13 +330,14 @@ export class TrainerEngine {
     const run = this.run;
     const ctx = this.ctx;
     if (!run || !ctx) return;
-    const { bpc, clickOn } = this.settings;
+    const { barBeats } = run.plan.tl;
+    const endBeat = run.plan.end?.beat ?? null;
     const horizon = ctx.currentTime + 0.15;
     while (run.nextK * run.beatDur + run.t0 < horizon) {
       const k = run.nextK;
       const t = run.t0 + k * run.beatDur;
-      if (run.endK == null || k < run.endK) {
-        if (clickOn) this.click(t, k >= 0 ? k % bpc === 0 : k === -COUNT_IN);
+      if (endBeat == null || k < endBeat) {
+        if (this.settings.clickOn) this.click(t, k >= 0 ? k % barBeats === 0 : k === -COUNT_IN);
       }
       run.nextK++;
     }
@@ -330,24 +361,37 @@ export class TrainerEngine {
     const gate = 0.03 * Math.pow(0.6, this.settings.sens - 3);
     const thr = this.fluxAvg * 2.2 + gate;
     this.fluxAvg += 0.06 * (Math.min(flux, thr * 2) - this.fluxAvg);
-    // 不応期 110ms。1回のストロークを何度も数えないため
+    // 不応期 110ms。1回のストロークを何度も数えないため。
+    // ここが16分音符の上限でもある (110ms = 135BPM の16分)
     if (flux > thr && now - this.lastOnset > 0.11) {
       this.lastOnset = now;
-      const run = this.run;
-      if (run) {
-        const tA = now - 0.012 - this.calibSec();
-        const k = Math.round((tA - run.t0) / run.beatDur);
-        const off = tA - (run.t0 + k * run.beatDur);
-        // 拍の ±30% (最大250ms) より外は裏拍とみなして無視する
-        if (k >= 0 && (run.endK == null || k < run.endK) && Math.abs(off) < Math.min(0.3 * run.beatDur, 0.25)) {
-          const prev = run.beatHits.get(k);
-          if (prev == null || Math.abs(off) < Math.abs(prev)) run.beatHits.set(k, off);
-          this.emit('onset', { ms: off * 1000, isChange: k % this.settings.bpc === 0 });
-        }
-      }
+      if (this.run) this.matchOnset(this.run, now - 0.012 - this.calibSec());
     }
   }
 
+  /**
+   * 拾ったストロークを、合わせにいくべき位置に結びつける。
+   * 楽譜がストロークを指定していれば打点に、していなければ拍にスナップする
+   */
+  private matchOnset(run: Run, tA: number): void {
+    const { tl, end } = run.plan;
+    const beat = (tA - run.t0) / run.beatDur;
+    const m = matchStroke(tl, beat, run.beatDur, end?.beat ?? null);
+    if (m.kind === 'none') return;
+    if (m.kind === 'extra') {
+      run.extra++;
+      this.emit('onset', { ms: m.off * 1000, isChange: false, extra: true });
+      return;
+    }
+    const prev = run.offs.get(m.at);
+    if (prev == null || Math.abs(m.off) < Math.abs(prev)) {
+      run.offs.set(m.at, m.off);
+      run.levels.set(m.at, this.inputLevel());
+    }
+    this.emit('onset', { ms: m.off * 1000, isChange: isSlotStart(tl, m.at) });
+  }
+
+  /** ストロークの強さ。いまは打点ごとの粒の揃いを見るのに使う */
   private inputLevel(): number {
     this.aSmall.getFloatTimeDomainData(this.tdBuf);
     let s = 0;
@@ -357,29 +401,26 @@ export class TrainerEngine {
   }
 
   // ---------- drill ----------
-  start(): boolean {
+  start(plan: Plan): boolean {
     if (this.source === 'none') {
       this.emitSource('先にマイクを許可してください。', true);
       return false;
     }
     this.ensureCtx();
     const ctx = this.ctx!;
-    const { bpm, bpc, sessionSec } = this.settings;
-    const beatDur = 60 / bpm;
-    const segDur = beatDur * bpc;
-    const nSeg = sessionSec ? Math.max(1, Math.round(sessionSec / segDur)) : null;
+    const beatDur = 60 / plan.bpm;
     this.run = {
+      plan,
       t0: ctx.currentTime + 0.2 + COUNT_IN * beatDur,
       beatDur,
-      segDur,
-      endSeg: nSeg,
-      endK: nSeg ? nSeg * bpc : null,
       nextK: -COUNT_IN,
-      beatHits: new Map(),
+      offs: new Map(),
+      levels: new Map(),
+      extra: 0,
       acc: new Map(),
       finalized: 0,
       results: [],
-        timer: setInterval(this.scheduler, 25),
+      timer: setInterval(this.scheduler, 25),
     };
     this.lastTickKey = '';
     this.scheduler();
@@ -392,33 +433,59 @@ export class TrainerEngine {
     const ctx = this.ctx;
     if (!run || !ctx) return;
     clearInterval(run.timer);
-    const tA = ctx.currentTime - this.calibSec();
-    const s = Math.floor((tA - run.t0) / run.segDur);
+    const beatA = (ctx.currentTime - this.calibSec() - run.t0) / run.beatDur;
+    const s = slotIndexAt(run.plan.tl, beatA);
+    const p = s >= 0 ? placeSlot(run.plan.tl, s) : null;
     // 手で止めたときは、そのコードを6割以上弾いていれば採点に入れる
-    if (byUser && s >= 0 && tA - run.t0 - s * run.segDur > 0.6 * run.segDur) this.finalizeUpTo(s + 1);
+    if (byUser && p && beatA - p.startBeat > 0.6 * p.beats) this.finalizeUpTo(s + 1);
     else this.finalizeUpTo(s);
-    const results = run.results;
+    const payload: SessionResult = {
+      results: run.results,
+      rhythm: this.tally(run, beatA),
+      chordJudged: run.plan.chordJudge,
+    };
     this.run = null;
     this.emit('running', false);
-    this.emit('end', results);
+    this.emit('end', payload);
+  }
+
+  /** ストロークの集計。打点が決まっている曲でだけ出す */
+  private tally(run: Run, stopBeat: number): RhythmTally | null {
+    const { tl, end } = run.plan;
+    if (!tl.hits.length) return null;
+    const until = Math.max(0, end ? Math.min(end.beat, stopBeat) : stopBeat);
+    const offsets: number[] = [];
+    const levels: number[] = [];
+    for (const [at, off] of run.offs) {
+      if (at >= until) continue;
+      offsets.push(off * 1000);
+      const lv = run.levels.get(at);
+      if (lv != null) levels.push(lv);
+    }
+    return { expected: hitsBefore(tl, until), played: offsets.length, extra: run.extra, offsets, levels };
   }
 
   private finalizeUpTo(sEnd: number): void {
     const run = this.run!;
-    while (run.finalized < sEnd && (run.endSeg == null || run.finalized < run.endSeg)) {
+    const cap = run.plan.end?.slots ?? Infinity;
+    while (run.finalized < sEnd && run.finalized < cap) {
       this.finalizeSegment(run.finalized++);
     }
   }
 
   private finalizeSegment(s: number): void {
     const run = this.run!;
-    const { prog, bpc } = this.settings;
-    const chord = prog[s % prog.length];
+    const slot = placeSlot(run.plan.tl, s);
+    if (!slot) return;
+    const chord = slot.chord;
     const t = TEMPL[chord];
-    const off = run.beatHits.get(s * bpc);
+    // ストロークが決まっている曲では、コードが変わる拍が休符のことがある。
+    // そのときはコードの中で最初に鳴らす位置で、チェンジのタイミングを測る
+    const at = firstHitBeat(run.plan.tl, slot);
+    const off = at == null ? undefined : run.offs.get(at);
     const a = run.acc.get(s);
     const r: SegmentResult = { s, chord, off: off == null ? null : off, heard: false, ok: false, best: null, weak: [] };
-    if (a && a.n >= 3) {
+    if (run.plan.chordJudge && a && a.n >= 3) {
       const sc = scoreChords(a.sum);
       if (sc) {
         r.heard = true;
@@ -443,38 +510,39 @@ export class TrainerEngine {
     const now = ctx.currentTime;
     this.detectOnset(now);
 
-    this.aBig.getFloatFrequencyData(this.bigDb);
-    const binHz = ctx.sampleRate / this.aBig.fftSize;
-    const maxDb = computeChroma(this.bigDb, binHz, this.frameCh);
-    for (let i = 0; i < 12; i++) this.live[i] += 0.35 * (this.frameCh[i] - this.live[i]);
+    // コードを見ない曲では、重い FFT (窓340ms) ごと回さない
     const run = this.run;
-    this.emitFrame(maxDb, run ? (now - run.t0) / run.beatDur : null);
-    if (!run) return;
-    const { bpc } = this.settings;
-    const tA = now - this.calibSec();
-    const k = Math.floor((now - run.t0) / run.beatDur);
-    if (k < 0) {
-      // 残り拍数はレーンのゲート脇に出るので、ここでは数えない
-      this.pushTick('カウントイン');
-    } else {
-      const s = Math.floor(k / bpc);
-      const left = run.endSeg ? Math.max(0, run.endSeg * run.segDur - (now - run.t0)) : null;
-      const phase =
-        left == null
-          ? `${s + 1} コード目`
-          : `残り ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
-      this.pushTick(phase);
+    const judging = !run || run.plan.chordJudge;
+    let maxDb = -200;
+    if (judging) {
+      this.aBig.getFloatFrequencyData(this.bigDb);
+      const binHz = ctx.sampleRate / this.aBig.fftSize;
+      maxDb = computeChroma(this.bigDb, binHz, this.frameCh);
+      for (let i = 0; i < 12; i++) this.live[i] += 0.35 * (this.frameCh[i] - this.live[i]);
     }
+    this.emitFrame(judging, maxDb, run ? (now - run.t0) / run.beatDur : null);
+    if (!run) return;
+    const { tl, end } = run.plan;
+    const tA = now - this.calibSec();
+    const beat = (now - run.t0) / run.beatDur;
+    this.pushTick({
+      beat,
+      slot: slotIndexAt(tl, beat),
+      leftSec: end ? Math.max(0, (end.beat - beat) * run.beatDur) : null,
+    });
 
     // 解析は補正後の時刻で区切る
-    const sA = Math.floor((tA - run.t0) / run.segDur);
-    const local = tA - run.t0 - sA * run.segDur;
-    // 前のコードの残響と FFT 窓 (約340ms) を避けてから集計を始める
-    const guard = run.segDur >= 1.0 ? 0.32 : 0.18;
-    // 短いコードでは 1秒も待つと区間の終わりに重なるので、区間の長さに合わせて縮める
-    const listenEnd = Math.min(run.segDur - 0.03, guard + Math.min(LISTEN_SEC, run.segDur * 0.55));
-    if (sA >= 0 && (run.endSeg == null || sA < run.endSeg) && maxDb > -76) {
-      if (local >= guard && local <= listenEnd) {
+    const beatA = (tA - run.t0) / run.beatDur;
+    const sA = slotIndexAt(tl, beatA);
+    const slot = sA >= 0 && (end == null || sA < end.slots) ? placeSlot(tl, sA) : null;
+    if (slot) {
+      const segDur = slot.beats * run.beatDur;
+      const local = (beatA - slot.startBeat) * run.beatDur;
+      // 前のコードの残響と FFT 窓 (約340ms) を避けてから集計を始める
+      const guard = segDur >= 1.0 ? 0.32 : 0.18;
+      // 短いコードでは 1秒も待つと区間の終わりに重なるので、区間の長さに合わせて縮める
+      const listenEnd = Math.min(segDur - 0.03, guard + Math.min(LISTEN_SEC, segDur * 0.55));
+      if (maxDb > -76 && local >= guard && local <= listenEnd) {
         let a = run.acc.get(sA);
         if (!a) {
           a = { sum: new Float32Array(12), n: 0 };
@@ -483,31 +551,33 @@ export class TrainerEngine {
         for (let i = 0; i < 12; i++) a.sum[i] += this.frameCh[i];
         a.n++;
       }
+      // 聞く窓が閉じたコードから順に確定させる。区間の終わりは待たない
+      if (local >= listenEnd) this.finalizeUpTo(sA + 1);
+      else if (sA > run.finalized) this.finalizeUpTo(sA);
     }
-    // 聞く窓が閉じたコードから順に確定させる。区間の終わりは待たない
-    if (sA >= 0 && local >= listenEnd) this.finalizeUpTo(sA + 1);
-    else if (sA > run.finalized) this.finalizeUpTo(sA);
-    if (run.endSeg != null && tA >= run.t0 + run.endSeg * run.segDur + 0.05) this.stop(false);
+    if (end != null && tA >= run.t0 + end.beat * run.beatDur + 0.05) this.stop(false);
   };
 
-  /** 拍の刻みは onFrame 側が持つ。ここは見出しが変わったときだけ流す */
-  private pushTick(phase: string): void {
-    if (phase === this.lastTickKey) return;
-    this.lastTickKey = phase;
-    this.emit('tick', { phase });
+  /** 拍の刻みは onFrame 側が持つ。ここは表示が変わる粒度 (拍と秒) でだけ流す */
+  private pushTick(t: TickInfo): void {
+    const key = `${Math.floor(t.beat)}|${t.leftSec == null ? '' : Math.ceil(t.leftSec)}`;
+    if (key === this.lastTickKey) return;
+    this.lastTickKey = key;
+    this.emit('tick', t);
   }
 
-  private emitFrame(maxDb: number, pos: number | null): void {
+  private emitFrame(judging: boolean, maxDb: number, pos: number | null): void {
     if (!this.frameListeners.size) return;
     let mx = 1e-9;
     for (let i = 0; i < 12; i++) if (this.live[i] > mx) mx = this.live[i];
-    const quiet = maxDb < -76 && mx < 1e-4;
+    // クロマを取っていないあいだは、音名まわりの表示は伏せる
+    const quiet = !judging || (maxDb < -76 && mx < 1e-4);
     let heard: string | null = null;
-    if (!quiet && maxDb > -72) {
+    if (judging && !quiet && maxDb > -72) {
       const sc = scoreChords(this.live);
       if (sc && sc.bestScore > 0.62) heard = sc.best;
     }
-    const f: FrameInfo = { level: this.inputLevel(), live: this.live, liveMax: mx, quiet, heard, pos };
+    const f: FrameInfo = { live: this.live, liveMax: mx, quiet, heard, pos };
     for (const fn of this.frameListeners) fn(f);
   }
 

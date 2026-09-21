@@ -6,10 +6,10 @@ import { useFrame } from '../hooks/useEngine';
 const BAR_MAX_PX = 52;
 
 /** 12音階のエネルギーと、いちばん近いコード。どちらも毎フレーム更新する */
-export function LiveChroma({ engine, chord }: { engine: TrainerEngine; chord: string }) {
+export function LiveChroma({ engine, chord }: { engine: TrainerEngine; chord: string | null }) {
   const bars = useRef<(HTMLElement | null)[]>([]);
   const heard = useRef<HTMLElement>(null);
-  const targets = TEMPL[chord]?.pcs ?? [];
+  const targets = (chord && TEMPL[chord]?.pcs) || [];
 
   useFrame(engine, (f) => {
     for (let i = 0; i < 12; i++) {

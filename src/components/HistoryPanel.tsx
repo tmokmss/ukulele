@@ -45,9 +45,10 @@ export function HistoryPanel({ history, onClear }: { history: HistoryEntry[]; on
             return (
               <li key={x.ts}>
                 <span>
-                  <b>{x.prog.split(' ').join(' → ')}</b> {x.bpm}BPM
+                  <b>{x.title ?? x.prog.split(' ').join(' → ')}</b> {x.bpm}BPM
                 </span>
                 <span>
+                  {x.rhythmOnly ? 'リズム ' : ''}
                   {x.okRate}% / {x.meanAbs == null ? '…' : `${x.meanAbs}ms`}　{d.getMonth() + 1}/{d.getDate()}
                 </span>
               </li>

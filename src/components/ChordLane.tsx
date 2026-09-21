@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { COUNT_IN, type TrainerEngine } from '../audio/engine';
 import type { CardVerdict } from '../core/report';
-import { placeRange, type Timeline } from '../core/timeline';
+import { hitsInRange, placeRange, type Timeline } from '../core/timeline';
 import { useFrame } from '../hooks/useEngine';
 import { FretMini } from './FretMini';
 
@@ -21,8 +21,6 @@ type Props = {
   anchor: number;
   /** 採点の済んだコード。スロット番号で引く */
   verdicts: Map<number, CardVerdict>;
-  /** 1コードの拍数。先をどれだけ見せるかの目安に使う */
-  bpc: number;
 };
 
 /**
@@ -32,7 +30,7 @@ type Props = {
  * カードの入れ替えはコードが変わるときだけなので React に任せ、
  * 位置は transform を1回書き換えるだけにしている。
  */
-export function ChordLane({ engine, tl, anchor, verdicts, bpc }: Props) {
+export function ChordLane({ engine, tl, anchor, verdicts }: Props) {
   const laneRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const countRef = useRef<HTMLDivElement>(null);
@@ -49,16 +47,21 @@ export function ChordLane({ engine, tl, anchor, verdicts, bpc }: Props) {
   }, []);
 
   const gateX = w * GATE_RATIO;
-  // 1コードぶんの先が見えるくらいに合わせる。コードが長いほどゆっくり流れる
-  const pxPerBeat = w > 0 ? (w - gateX) / Math.max(4, bpc * 1.6) : 0;
+  // 1コードぶんの先が見えるくらいに合わせる。コードが長いほどゆっくり流れる。
+  // 楽譜は小節ごとに長さが変わるので、平均で見る
+  const avgBeats = tl.cycleBeats / tl.slots.length;
+  const pxPerBeat = w > 0 ? (w - gateX) / Math.max(4, avgBeats * 1.6) : 0;
 
-  // まだ1つも鳴らしていないうちは「過去のコード」は無い
+  // まだ1つも鳴らしていないうちは「過去のコード」は無い。楽譜の終わりでは先が無くなる
   const cards = useMemo(
     () => placeRange(tl, Math.max(0, anchor - PAST), Math.max(AHEAD - 1, anchor + AHEAD)),
     [tl, anchor],
   );
-  const from = cards[0].startBeat;
-  const to = cards[cards.length - 1].startBeat + cards[cards.length - 1].beats;
+  const last = cards[cards.length - 1];
+  const from = cards.length ? cards[0].startBeat : 0;
+  const to = cards.length ? last.startBeat + last.beats : 0;
+  // 楽譜がストロークを決めていれば、鳴らす位置を矢印で出す
+  const hits = useMemo(() => hitsInRange(tl, from, to), [tl, from, to]);
 
   useFrame(engine, ({ pos }) => {
     const strip = stripRef.current;
@@ -103,6 +106,12 @@ export function ChordLane({ engine, tl, anchor, verdicts, bpc }: Props) {
             />
           );
         })}
+
+        {hits.map((h) => (
+          <i key={`h${h.beat}`} className={`hit h-${h.dir}`} style={{ left: h.beat * pxPerBeat }}>
+            {h.dir === 'D' ? '↓' : h.dir === 'U' ? '↑' : '×'}
+          </i>
+        ))}
 
         {cards.map((c) => {
           // 採点はゲートを通過したカードに直接出す。結果が付いたカードは薄くしない

@@ -1,22 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SourceState, TickInfo } from './audio/engine';
+import type { SourceState } from './audio/engine';
 import { Controls } from './components/Controls';
 import { HistoryPanel } from './components/HistoryPanel';
 import { LiveChroma } from './components/LiveChroma';
 import { Progression } from './components/Progression';
 import { MicStatus } from './components/MicStatus';
+import { SongPanel } from './components/SongPanel';
 import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './components/Stage';
 import { SummaryPanel } from './components/SummaryPanel';
 import { Tuning } from './components/Tuning';
 import { median } from './core/chroma';
-import { cardVerdict, describeResult, summarize, type CardVerdict, type SessionSummary } from './core/report';
+import {
+  cardVerdict,
+  describeResult,
+  phaseText,
+  summarize,
+  type CardVerdict,
+  type SessionSummary,
+} from './core/report';
+import { scoreTimeline } from './core/score';
+import { findSong } from './core/songs';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
-import { buildTimeline, placeSlot, slotIndexAt } from './core/timeline';
-import type { Settings } from './core/types';
+import { buildTimeline, canJudgeChords, placeSlot, planEnd, slotIndexAt } from './core/timeline';
+import type { PracticeMode, Settings, TickInfo } from './core/types';
 import { useEngine, useFrame } from './hooks/useEngine';
 
 /** 自動補正に使うには、これだけのチェンジが拾えている必要がある */
 const AUTO_CALIB_MIN_SAMPLES = 6;
+
+/** テンポのスライダーが出せる範囲。楽譜の bpm もここに収める */
+const BPM_MIN = 40;
+const BPM_MAX = 180;
+const clampBpm = (v: number): number => Math.min(BPM_MAX, Math.max(BPM_MIN, v));
 
 /** カードの採点を、何コードぶん遡って持っておくか */
 const VERDICT_KEEP = 4;
@@ -40,9 +55,18 @@ export default function App() {
   /** レーンのカードに出す採点。番号はタイムラインのスロット番号 */
   const [verdicts, setVerdicts] = useState<Map<number, CardVerdict>>(() => new Map());
 
+  // 楽譜は songs/*.json で管理する。選ばれていなければ進行の練習に落としておく
+  const score = useMemo(() => findSong(settings.songId)?.score ?? null, [settings.songId]);
+  const mode: PracticeMode = settings.mode === 'score' && score ? 'score' : 'drill';
+
   // 画面はタイムライン上の「いまどのコードか」だけを見る。
   // 拍の細かい動きはレーンが onFrame から直接受け取る。
-  const tl = useMemo(() => buildTimeline(settings.prog, settings.bpc), [settings.prog, settings.bpc]);
+  const tl = useMemo(
+    () => (mode === 'score' && score ? scoreTimeline(score) : buildTimeline(settings.prog, settings.bpc)),
+    [mode, score, settings.prog, settings.bpc],
+  );
+  // 速い曲では、クロマ用の FFT の窓 (約340ms) が足りない。そのときはリズムだけ見る
+  const chordJudge = canJudgeChords(tl, settings.bpm);
   const [anchor, setAnchor] = useState(-1);
   const anchorRef = useRef(-1);
   useFrame(engine, ({ pos }) => {
@@ -72,22 +96,22 @@ export default function App() {
   useEffect(
     () =>
       engine.on('result', (r) => {
-        setFeedback(describeResult(r));
+        setFeedback(describeResult(r, chordJudge));
         setVerdicts((m) => {
           const next = new Map(m);
-          next.set(r.s, cardVerdict(r));
+          next.set(r.s, cardVerdict(r, chordJudge));
           // 画面から流れ去ったぶんは捨てる
           for (const k of next.keys()) if (k < r.s - VERDICT_KEEP) next.delete(k);
           return next;
         });
       }),
-    [engine],
+    [engine, chordJudge],
   );
 
   useEffect(
     () =>
-      engine.on('onset', ({ ms, isChange }) =>
-        setDots((d) => [...d, { id: ++dotSeq, ms, big: isChange }].slice(-LANE_DOT_MAX)),
+      engine.on('onset', ({ ms, isChange, extra }) =>
+        setDots((d) => [...d, { id: ++dotSeq, ms, big: isChange, extra }].slice(-LANE_DOT_MAX)),
       ),
     [engine],
   );
@@ -95,8 +119,8 @@ export default function App() {
   // 記録に残すのは終了時点の設定。settings が変わるたび貼り直す
   useEffect(
     () =>
-      engine.on('end', (results) => {
-        const sum = summarize(results);
+      engine.on('end', (session) => {
+        const sum = summarize(session);
         setSummary(sum);
         setFinished(true);
         setTick(null);
@@ -106,17 +130,19 @@ export default function App() {
           setHistory(
             pushHistory({
               ts: Date.now(),
-              prog: settings.prog.join(' '),
+              prog: mode === 'score' && score ? score.chords.join(' ') : settings.prog.join(' '),
+              title: mode === 'score' && score ? score.title : undefined,
               bpm: settings.bpm,
-              bpc: settings.bpc,
+              bpc: mode === 'score' && score ? score.beatsPerBar : settings.bpc,
               n: sum.total,
-              okRate: sum.okRate,
+              okRate: sum.chordJudged ? sum.okRate : (sum.rhythm?.playRate ?? 0),
+              rhythmOnly: sum.chordJudged ? undefined : true,
               meanAbs: sum.meanAbs == null ? null : Math.round(sum.meanAbs),
             }),
           );
         }
       }),
-    [engine, settings],
+    [engine, settings, mode, score],
   );
 
   const onToggle = () => {
@@ -128,7 +154,8 @@ export default function App() {
     setVerdicts(new Map());
     setSummary(null);
     setFinished(false);
-    if (engine.start()) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
+    const plan = { tl, bpm: settings.bpm, end: planEnd(tl, settings.bpm, settings.sessionSec), chordJudge };
+    if (engine.start(plan)) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
   };
 
   const onAutoCalib = () => {
@@ -139,9 +166,8 @@ export default function App() {
   };
 
   // 鳴っているコードと、つぎにゲートへ来るコード。停止中は進行の先頭が「つぎ」になる
-  const chord = anchor >= 0 ? placeSlot(tl, anchor).chord : null;
-  const next = placeSlot(tl, anchor + 1).chord;
-  const phase = running && tick ? tick.phase : '最初のコード';
+  const chord = anchor >= 0 ? (placeSlot(tl, anchor)?.chord ?? null) : null;
+  const next = placeSlot(tl, anchor + 1)?.chord ?? null;
 
   return (
     <main>
@@ -151,7 +177,6 @@ export default function App() {
       </header>
 
       <MicStatus
-        engine={engine}
         source={source.source}
         message={source.message}
         warn={source.warn}
@@ -166,17 +191,41 @@ export default function App() {
         verdicts={verdicts}
         chord={chord}
         next={next}
-        phase={phase}
-        bpc={settings.bpc}
+        phase={phaseText(tl, running ? tick : null)}
         dots={dots}
         feedback={feedback}
+        chordJudge={chordJudge}
       />
 
-      <LiveChroma engine={engine} chord={chord ?? next} />
+      {/* リズムだけ採点している間はクロマを取っていないので、音名の表示は出さない */}
+      {(chordJudge || !running) && <LiveChroma engine={engine} chord={chord ?? next} />}
 
-      <Controls settings={settings} patch={patch} running={running} onToggle={onToggle} />
+      <Controls
+        settings={settings}
+        patch={patch}
+        running={running}
+        onToggle={onToggle}
+        mode={mode}
+        scoreReady={score != null}
+      />
 
-      <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
+      {mode === 'drill' && (
+        <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
+      )}
+
+      <SongPanel
+        songId={settings.songId}
+        active={mode === 'score'}
+        running={running}
+        bpm={settings.bpm}
+        onPick={(song) =>
+          patch({
+            songId: song.id,
+            mode: 'score',
+            bpm: song.score.bpm == null ? settings.bpm : clampBpm(song.score.bpm),
+          })
+        }
+      />
 
       <SummaryPanel summary={summary} stopped={finished} />
 

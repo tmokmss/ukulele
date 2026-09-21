@@ -7,7 +7,7 @@ import { FretMini } from './FretMini';
 import { StringMeter } from './StringMeter';
 
 /** タイミングのレーンに出す点。新しいものほど濃く、12個で消える */
-export type LaneDot = { id: number; ms: number; big: boolean };
+export type LaneDot = { id: number; ms: number; big: boolean; extra?: boolean };
 export const LANE_DOT_MAX = 12;
 
 /** 採点結果のほか、練習開始直後の案内も同じ場所に出す (tone なし) */
@@ -22,31 +22,38 @@ type Props = {
   verdicts: Map<number, CardVerdict>;
   /** いま鳴っているコード。カウントイン中と停止中は null */
   chord: string | null;
-  /** つぎにゲートへ来るコード */
-  next: string;
+  /** つぎにゲートへ来るコード。楽譜を弾き終えたあとは null */
+  next: string | null;
   phase: string;
-  bpc: number;
   dots: LaneDot[];
   feedback: StageFeedback | null;
+  /** コードまで採点しているか。しないときは音名まわりを伏せる */
+  chordJudge: boolean;
 };
 
-export function Stage({ engine, tl, anchor, verdicts, chord, next, phase, bpc, dots, feedback }: Props) {
+export function Stage({ engine, tl, anchor, verdicts, chord, next, phase, dots, feedback, chordJudge }: Props) {
   return (
     <section className="stage" aria-label="いまのコード">
       <p className="phase">{phase}</p>
 
-      <ChordLane engine={engine} tl={tl} anchor={anchor} verdicts={verdicts} bpc={bpc} />
+      <ChordLane engine={engine} tl={tl} anchor={anchor} verdicts={verdicts} />
 
       <div className="under">
         <div>
           <p className="nowline">
             いま鳴っている<b>{chord ?? '—'}</b>
           </p>
-          <StringMeter engine={engine} chord={chord} />
+          {chordJudge ? (
+            <StringMeter engine={engine} chord={chord} />
+          ) : (
+            <p className="note" style={{ marginTop: 6 }}>
+              コードが短いので、この曲はリズムだけ採点します。
+            </p>
+          )}
         </div>
         <div className="nextshape">
-          <p className="lbl">つぎに押さえる形</p>
-          <FretMini chord={next} w={84} labels />
+          <p className="lbl">{next ? 'つぎに押さえる形' : 'おしまい'}</p>
+          {next && <FretMini chord={next} w={84} labels />}
         </div>
       </div>
 
