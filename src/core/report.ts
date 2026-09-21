@@ -35,6 +35,29 @@ export function describeResult(r: SegmentResult): ResultText {
   return { timing: `${r.chord}: ${timing}`, tone, chord };
 }
 
+/**
+ * レーンのカードに直接のせる、ひと目ぶんの採点。
+ * 詳しい内容 (何に聞こえたか、どの弦が弱いか) は describeResult の文章が持つ。
+ */
+export type CardVerdict = {
+  tone: ResultText['tone'];
+  /** コードが合っていたか。判定できなかったときは '?' */
+  mark: '✓' | '✗' | '?' | '';
+  /** 「ジャスト」「早め」「遅め」、音が拾えなければ「聞こえず」 */
+  label: string;
+};
+
+export function cardVerdict(r: SegmentResult): CardVerdict {
+  if (r.off == null) return { tone: 'miss', mark: '', label: '聞こえず' };
+  const ms = Math.round(r.off * 1000);
+  const tone = timingClass(ms);
+  return {
+    tone,
+    mark: !r.heard ? '?' : r.ok ? '✓' : '✗',
+    label: tone === 'good' ? 'ジャスト' : ms > 0 ? '遅め' : '早め',
+  };
+}
+
 export type ChordBreakdown = { chord: string; notes: string; ok: number; n: number };
 
 export type SessionSummary = {

@@ -9,7 +9,7 @@ import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './compone
 import { SummaryPanel } from './components/SummaryPanel';
 import { Tuning } from './components/Tuning';
 import { median } from './core/chroma';
-import { describeResult, summarize, type SessionSummary } from './core/report';
+import { cardVerdict, describeResult, summarize, type CardVerdict, type SessionSummary } from './core/report';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
 import { buildTimeline, placeSlot, slotIndexAt } from './core/timeline';
 import type { Settings } from './core/types';
@@ -17,6 +17,9 @@ import { useEngine, useFrame } from './hooks/useEngine';
 
 /** 自動補正に使うには、これだけのチェンジが拾えている必要がある */
 const AUTO_CALIB_MIN_SAMPLES = 6;
+
+/** カードの採点を、何コードぶん遡って持っておくか */
+const VERDICT_KEEP = 4;
 
 let dotSeq = 0;
 
@@ -34,6 +37,8 @@ export default function App() {
   const [history, setHistory] = useState(loadHistory);
   const [lastOffsets, setLastOffsets] = useState<number[]>([]);
   const [autoCalibDone, setAutoCalibDone] = useState(false);
+  /** レーンのカードに出す採点。番号はタイムラインのスロット番号 */
+  const [verdicts, setVerdicts] = useState<Map<number, CardVerdict>>(() => new Map());
 
   // 画面はタイムライン上の「いまどのコードか」だけを見る。
   // 拍の細かい動きはレーンが onFrame から直接受け取る。
@@ -64,7 +69,20 @@ export default function App() {
   useEffect(() => engine.on('running', setRunning), [engine]);
   useEffect(() => engine.on('tick', setTick), [engine]);
   useEffect(() => engine.on('calib', (ms) => patch({ calibMs: ms })), [engine, patch]);
-  useEffect(() => engine.on('result', (r) => setFeedback(describeResult(r))), [engine]);
+  useEffect(
+    () =>
+      engine.on('result', (r) => {
+        setFeedback(describeResult(r));
+        setVerdicts((m) => {
+          const next = new Map(m);
+          next.set(r.s, cardVerdict(r));
+          // 画面から流れ去ったぶんは捨てる
+          for (const k of next.keys()) if (k < r.s - VERDICT_KEEP) next.delete(k);
+          return next;
+        });
+      }),
+    [engine],
+  );
 
   useEffect(
     () =>
@@ -107,6 +125,7 @@ export default function App() {
       return;
     }
     setDots([]);
+    setVerdicts(new Map());
     setSummary(null);
     setFinished(false);
     if (engine.start()) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
@@ -144,6 +163,7 @@ export default function App() {
         engine={engine}
         tl={tl}
         anchor={anchor}
+        verdicts={verdicts}
         chord={chord}
         next={next}
         phase={phase}
