@@ -20,11 +20,8 @@ const MIC_OK = 'マイクにつながりました。ウクレレを鳴らすと�
 
 export type SourceState = { source: SourceKind; message: string | null; warn: boolean };
 
-export type TickInfo = {
-  phase: string;
-  chord: string;
-  next: string;
-};
+/** 画面の見出しに出す文字列。コードそのものはタイムライン側が持つ */
+export type TickInfo = { phase: string };
 
 export type FrameInfo = {
   /** 入力レベル 0..1 */
@@ -445,12 +442,12 @@ export class TrainerEngine {
     const run = this.run;
     this.emitFrame(maxDb, run ? (now - run.t0) / run.beatDur : null);
     if (!run) return;
-    const { bpc, prog } = this.settings;
+    const { bpc } = this.settings;
     const tA = now - this.calibSec();
     const k = Math.floor((now - run.t0) / run.beatDur);
     if (k < 0) {
-      // 残り拍数は拍のバーの横に出るので、ここでは数えない
-      this.pushTick(prog[0], prog[1 % prog.length], 'カウントイン');
+      // 残り拍数はレーンのゲート脇に出るので、ここでは数えない
+      this.pushTick('カウントイン');
     } else {
       const s = Math.floor(k / bpc);
       const left = run.endSeg ? Math.max(0, run.endSeg * run.segDur - (now - run.t0)) : null;
@@ -458,7 +455,7 @@ export class TrainerEngine {
         left == null
           ? `${s + 1} コード目`
           : `残り ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
-      this.pushTick(prog[s % prog.length], prog[(s + 1) % prog.length], phase);
+      this.pushTick(phase);
     }
 
     // 解析は補正後の時刻で区切る
@@ -481,12 +478,11 @@ export class TrainerEngine {
     if (run.endSeg != null && tA >= run.t0 + run.endSeg * run.segDur + 0.05) this.stop(false);
   };
 
-  /** 拍の刻みは onFrame 側が持つ。ここはコードや残り時間が変わったときだけ流す */
-  private pushTick(chord: string, next: string, phase: string): void {
-    const key = `${chord}|${next}|${phase}`;
-    if (key === this.lastTickKey) return;
-    this.lastTickKey = key;
-    this.emit('tick', { chord, next, phase });
+  /** 拍の刻みは onFrame 側が持つ。ここは見出しが変わったときだけ流す */
+  private pushTick(phase: string): void {
+    if (phase === this.lastTickKey) return;
+    this.lastTickKey = phase;
+    this.emit('tick', { phase });
   }
 
   private emitFrame(maxDb: number, pos: number | null): void {

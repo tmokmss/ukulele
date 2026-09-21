@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SourceState, TickInfo } from './audio/engine';
 import { Controls } from './components/Controls';
 import { HistoryPanel } from './components/HistoryPanel';
@@ -11,8 +11,9 @@ import { Tuning } from './components/Tuning';
 import { median } from './core/chroma';
 import { describeResult, summarize, type SessionSummary } from './core/report';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
+import { buildTimeline, placeSlot, slotIndexAt } from './core/timeline';
 import type { Settings } from './core/types';
-import { useEngine } from './hooks/useEngine';
+import { useEngine, useFrame } from './hooks/useEngine';
 
 /** 自動補正に使うには、これだけのチェンジが拾えている必要がある */
 const AUTO_CALIB_MIN_SAMPLES = 6;
@@ -33,6 +34,19 @@ export default function App() {
   const [history, setHistory] = useState(loadHistory);
   const [lastOffsets, setLastOffsets] = useState<number[]>([]);
   const [autoCalibDone, setAutoCalibDone] = useState(false);
+
+  // 画面はタイムライン上の「いまどのコードか」だけを見る。
+  // 拍の細かい動きはレーンが onFrame から直接受け取る。
+  const tl = useMemo(() => buildTimeline(settings.prog, settings.bpc), [settings.prog, settings.bpc]);
+  const [anchor, setAnchor] = useState(-1);
+  const anchorRef = useRef(-1);
+  useFrame(engine, ({ pos }) => {
+    const i = pos == null ? -1 : slotIndexAt(tl, pos);
+    if (i !== anchorRef.current) {
+      anchorRef.current = i;
+      setAnchor(i);
+    }
+  });
 
   const patch = useCallback((p: Partial<Settings>) => {
     setSettings((s) => {
@@ -95,8 +109,7 @@ export default function App() {
     setDots([]);
     setSummary(null);
     setFinished(false);
-    if (engine.start())
-      setFeedback({ timing: 'バーが満ちたら鳴らします。まずはカウントに合わせて構えてください。', tone: null, chord: '' });
+    if (engine.start()) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
   };
 
   const onAutoCalib = () => {
@@ -106,9 +119,9 @@ export default function App() {
     setAutoCalibDone(true);
   };
 
-  // 練習中は tick が現在地を持つ。停止中は進行の先頭を見せる
-  const chord = running && tick ? tick.chord : settings.prog[0];
-  const next = running && tick ? tick.next : settings.prog[1 % settings.prog.length];
+  // 鳴っているコードと、つぎにゲートへ来るコード。停止中は進行の先頭が「つぎ」になる
+  const chord = anchor >= 0 ? placeSlot(tl, anchor).chord : null;
+  const next = placeSlot(tl, anchor + 1).chord;
   const phase = running && tick ? tick.phase : '最初のコード';
 
   return (
@@ -129,6 +142,8 @@ export default function App() {
 
       <Stage
         engine={engine}
+        tl={tl}
+        anchor={anchor}
         chord={chord}
         next={next}
         phase={phase}
@@ -137,7 +152,7 @@ export default function App() {
         feedback={feedback}
       />
 
-      <LiveChroma engine={engine} chord={chord} />
+      <LiveChroma engine={engine} chord={chord ?? next} />
 
       <Controls settings={settings} patch={patch} running={running} onToggle={onToggle} />
 

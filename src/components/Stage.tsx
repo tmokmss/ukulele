@@ -1,9 +1,10 @@
-import { useRef } from 'react';
-import { COUNT_IN, type TrainerEngine } from '../audio/engine';
+import type { TrainerEngine } from '../audio/engine';
 import { timingClass } from '../core/chroma';
 import type { ResultText } from '../core/report';
-import { useFrame } from '../hooks/useEngine';
-import { FretDiagram } from './FretDiagram';
+import type { Timeline } from '../core/timeline';
+import { ChordLane } from './ChordLane';
+import { FretMini } from './FretMini';
+import { StringMeter } from './StringMeter';
 
 /** タイミングのレーンに出す点。新しいものほど濃く、12個で消える */
 export type LaneDot = { id: number; ms: number; big: boolean };
@@ -14,7 +15,12 @@ export type StageFeedback = { timing: string; tone: ResultText['tone'] | null; c
 
 type Props = {
   engine: TrainerEngine;
-  chord: string;
+  tl: Timeline;
+  /** いま鳴っているコードの絶対番号。カウントイン中と停止中は -1 */
+  anchor: number;
+  /** いま鳴っているコード。カウントイン中と停止中は null */
+  chord: string | null;
+  /** つぎにゲートへ来るコード */
   next: string;
   phase: string;
   bpc: number;
@@ -22,51 +28,25 @@ type Props = {
   feedback: StageFeedback | null;
 };
 
-export function Stage({ engine, chord, next, phase, bpc, dots, feedback }: Props) {
-  const cells = useRef<(HTMLElement | null)[]>([]);
-  const cue = useRef<HTMLParagraphElement>(null);
-
-  // 拍のバーは毎フレーム動かす。点滅だと「光ってから弾く」ことになって必ず遅れるので、
-  // 満ちていく動きで次の一打を予測できるようにする。
-  useFrame(engine, ({ pos }) => {
-    // 満ちきった瞬間が鳴らす瞬間。カウントインも同じ見た目で、4拍かけて満ちる
-    const filled = pos == null ? 0 : pos < 0 ? ((COUNT_IN + pos) / COUNT_IN) * bpc : pos % bpc;
-    for (let i = 0; i < bpc; i++) {
-      const el = cells.current[i];
-      if (el) el.style.width = `${Math.max(0, Math.min(1, filled - i)) * 100}%`;
-    }
-    setText(
-      cue.current,
-      pos == null ? '' : pos < 0 ? `スタートまで ${Math.ceil(-pos)}` : `あと ${bpc - Math.floor(pos % bpc)} 拍`,
-    );
-  });
-
+export function Stage({ engine, tl, anchor, chord, next, phase, bpc, dots, feedback }: Props) {
   return (
     <section className="stage" aria-label="いまのコード">
-      <div className="stage-top">
-        <div>
-          <p className="phase">{phase}</p>
-          <p className={chord.length > 3 ? 'chord long' : 'chord'}>{chord}</p>
-          <p className="next">
-            つぎは<b>{next}</b>
-          </p>
-        </div>
-        <FretDiagram engine={engine} chord={chord} />
-      </div>
+      <p className="phase">{phase}</p>
 
-      <p className="cue" ref={cue} aria-hidden="true" />
-      <div className="beats" aria-hidden="true">
-        {Array.from({ length: bpc }, (_, i) => (
-          <i key={i}>
-            <b
-              ref={(el) => {
-                cells.current[i] = el;
-              }}
-            />
-          </i>
-        ))}
+      <ChordLane engine={engine} tl={tl} anchor={anchor} bpc={bpc} />
+
+      <div className="under">
+        <div>
+          <p className="nowline">
+            いま鳴っている<b>{chord ?? '—'}</b>
+          </p>
+          <StringMeter engine={engine} chord={chord} />
+        </div>
+        <div className="nextshape">
+          <p className="lbl">つぎに押さえる形</p>
+          <FretMini chord={next} w={84} labels />
+        </div>
       </div>
-      <p className="rule">バーが右端まで満ちたら、そこで次のコードを1回鳴らします。</p>
 
       <div className="lane" aria-hidden="true">
         <span>早い</span>
@@ -97,18 +77,9 @@ export function Stage({ engine, chord, next, phase, bpc, dots, feedback }: Props
             {feedback.chord && <p>{feedback.chord}</p>}
           </>
         ) : (
-          <>
-            <p className="t">準備ができたら、練習を始めてください。</p>
-            <p className="note" style={{ marginTop: 2 }}>
-              押さえ方の図は、聞こえている音ほど濃く光ります。光らない弦はミュートしているかもしれません。
-            </p>
-          </>
+          <p className="t">準備ができたら、練習を始めてください。</p>
         )}
       </div>
     </section>
   );
-}
-
-function setText(el: HTMLElement | null, text: string): void {
-  if (el && el.textContent !== text) el.textContent = text;
 }

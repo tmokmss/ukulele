@@ -51,28 +51,48 @@ button:disabled{opacity:.45;cursor:default}
   margin-top:16px;background:var(--surface);border-radius:26px;padding:18px 18px 16px;
   border:1.5px solid var(--line);
 }
-.stage-top{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:8px;align-items:center}
-.phase{font-size:13px;color:var(--muted);font-weight:500;min-height:1.65em}
-.chord{font-weight:900;font-size:clamp(76px,25vw,124px);line-height:1;letter-spacing:-.03em;margin:2px 0 6px}
-.chord.long{font-size:clamp(46px,14.5vw,76px);letter-spacing:-.02em;margin:14px 0 12px}
-.next{font-size:14px;color:var(--muted)}
-.next b{color:var(--ink);font-weight:900;font-size:20px;margin-left:4px}
-.fret{width:120px;height:auto;display:block}
-.fret .str{stroke:var(--ink);stroke-linecap:round}
-.fret .fr{stroke:var(--line);stroke-width:1.5}
-.fret .nut{stroke:var(--ink);stroke-width:4;stroke-linecap:round}
-.fret .dot{fill:var(--accent)}
-.fret .open{fill:var(--accent);stroke:var(--accent);stroke-width:2}
-.fret text{fill:var(--muted);font-size:10px;font-weight:700;text-anchor:middle;font-family:inherit}
+.phase{font-size:13px;color:var(--muted);font-weight:600;min-height:1.65em;margin:0}
 
-/* 拍のバー。点灯ではなく「満ちる」ことで、次の一打を予測できるようにしている */
-.cue{margin-top:14px;text-align:right;font-size:13px;font-weight:700;color:var(--muted);min-height:1.4em}
-.beats{display:flex;gap:6px;margin-top:4px}
-.beats i{flex:1;height:14px;border-radius:7px;background:var(--line);overflow:hidden}
-.beats i b{display:block;width:0;height:100%;border-radius:7px;background:var(--accent)}
-/* 最後の拍だけ色を変えて、チェンジが次に来ることを見せる */
-.beats i:last-child b{background:var(--sun)}
-.rule{margin-top:8px;font-size:12px;color:var(--muted)}
+/* コードレーン: 右から左へ流れてきて、ゲートに乗ったコードを鳴らす */
+.chordlane{position:relative;height:118px;margin-top:6px;border-radius:14px;background:var(--bg);overflow:hidden}
+.chordlane .strip{position:absolute;inset:0;will-change:transform}
+.chordlane .tick{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.chordlane .tick.head{background:#9FBDB7}
+/* ゲート = 鳴らす位置。動かないので「いつ」が一定に読める */
+.gate{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:var(--sun);z-index:4}
+.gate::before{content:"";position:absolute;left:-8px;top:0;border:9px solid transparent;border-top-color:var(--sun)}
+.gate::after{content:"";position:absolute;left:-8px;bottom:0;border:9px solid transparent;border-bottom-color:var(--sun)}
+.gatezone{position:absolute;top:0;bottom:0;background:var(--sun);opacity:.12;z-index:1}
+/* カウントインの残り拍。ゲートの左 (まだ何も無い側) に置く */
+.gate-count{position:absolute;top:50%;z-index:5;transform:translate(-100%,-50%);margin-left:-14px;
+  font-size:30px;font-weight:900;line-height:1;color:var(--sun)}
+
+.ct{position:absolute;top:14px;z-index:3;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:5px 2px 4px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line);
+  /* ゲートを通過した瞬間に消えると鳴らしにくいので、少し尾を引かせる */
+  transition:opacity .25s,border-color .25s,box-shadow .25s}
+.ct .nm{font-weight:900;font-size:18px;letter-spacing:-.02em;line-height:1.05}
+.ct.past{background:transparent;border-color:transparent;opacity:.38}
+.ct.due{border-color:var(--accent);border-width:2.5px;box-shadow:0 5px 14px rgba(14,133,133,.25)}
+.ct.due .nm{color:var(--accent);font-size:21px}
+
+.fretmini .m-fr{stroke:#B7D0CB;stroke-width:1}
+.fretmini .m-nut{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
+.fretmini .m-str{stroke:#5C8087;stroke-width:1}
+.fretmini .m-dot{fill:var(--accent)}
+.fretmini .m-open{fill:none;stroke:var(--accent);stroke-width:1.4}
+.fretmini text{fill:var(--muted);font-weight:700;text-anchor:middle;font-family:inherit}
+
+.under{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:12px;align-items:center;margin-top:12px}
+.nowline{margin:0;font-size:13px;color:var(--muted)}
+.nowline b{font-size:24px;font-weight:900;color:var(--ink);margin:0 5px}
+.strmeter{display:flex;gap:5px;margin-top:8px;max-width:180px}
+.strmeter div{flex:1;text-align:center}
+.strmeter i{display:block;height:7px;border-radius:4px;background:var(--good);opacity:.16}
+.strmeter span{font-size:9.5px;color:var(--muted);font-weight:700}
+.nextshape{text-align:center}
+.nextshape .lbl{margin:0 0 4px;font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.03em}
+.nextshape .fretmini{margin:0 auto}
 
 .lane{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11.5px;color:var(--muted)}
 .lane-track{position:relative;flex:1;height:26px;border-radius:13px;background:var(--bg);overflow:hidden}
