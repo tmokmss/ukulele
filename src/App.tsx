@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SourceState } from './audio/engine';
 import { Controls } from './components/Controls';
 import { HistoryPanel } from './components/HistoryPanel';
-import { LiveChroma } from './components/LiveChroma';
 import { Progression } from './components/Progression';
 import { MicStatus } from './components/MicStatus';
+import { SettingsPage } from './components/SettingsPage';
 import { SongPanel } from './components/SongPanel';
 import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './components/Stage';
 import { SummaryPanel } from './components/SummaryPanel';
-import { Tuning } from './components/Tuning';
 import { median } from './core/chroma';
 import {
   cardVerdict,
@@ -24,6 +23,7 @@ import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } fr
 import { buildTimeline, canJudgeChords, placeSlot, planEnd, slotIndexAt } from './core/timeline';
 import type { PracticeMode, Settings, TickInfo } from './core/types';
 import { useEngine, useFrame } from './hooks/useEngine';
+import { useHashView } from './hooks/useHashView';
 
 /** 自動補正に使うには、これだけのチェンジが拾えている必要がある */
 const AUTO_CALIB_MIN_SAMPLES = 6;
@@ -41,6 +41,7 @@ let dotSeq = 0;
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const engine = useEngine(settings);
+  const [view, go] = useHashView();
 
   const [source, setSource] = useState<SourceState>({ source: 'none', message: null, warn: false });
   const [running, setRunning] = useState(false);
@@ -169,11 +170,34 @@ export default function App() {
   const chord = anchor >= 0 ? (placeSlot(tl, anchor)?.chord ?? null) : null;
   const next = placeSlot(tl, anchor + 1)?.chord ?? null;
 
+  if (view === 'settings') {
+    return (
+      <main>
+        <SettingsPage
+          engine={engine}
+          source={source}
+          onRetryMic={() => void engine.useMic()}
+          settings={settings}
+          patch={patch}
+          canAutoCalib={source.source === 'mic' && lastOffsets.length >= AUTO_CALIB_MIN_SAMPLES && !autoCalibDone}
+          onAutoCalib={onAutoCalib}
+          onBack={() => go('practice')}
+        />
+      </main>
+    );
+  }
+
   return (
     <main>
-      <header>
-        <h1>コードチェンジ練習</h1>
-        <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
+      <header className="head">
+        <div>
+          <h1>コードチェンジ練習</h1>
+          <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
+        </div>
+        {/* 練習中に移ると、見えないところでメトロノームだけが鳴り続ける */}
+        <button type="button" className="btn-sub" disabled={running} onClick={() => go('settings')}>
+          設定
+        </button>
       </header>
 
       <MicStatus
@@ -196,9 +220,6 @@ export default function App() {
         feedback={feedback}
         chordJudge={chordJudge}
       />
-
-      {/* リズムだけ採点している間はクロマを取っていないので、音名の表示は出さない */}
-      {(chordJudge || !running) && <LiveChroma engine={engine} chord={chord ?? next} />}
 
       <Controls
         settings={settings}
@@ -230,13 +251,6 @@ export default function App() {
       <SummaryPanel summary={summary} stopped={finished} />
 
       <HistoryPanel history={history} onClear={() => setHistory(clearHistory())} />
-
-      <Tuning
-        settings={settings}
-        patch={patch}
-        canAutoCalib={source.source === 'mic' && lastOffsets.length >= AUTO_CALIB_MIN_SAMPLES && !autoCalibDone}
-        onAutoCalib={onAutoCalib}
-      />
     </main>
   );
 }

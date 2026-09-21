@@ -10,7 +10,7 @@ type Props = {
 
 /**
  * マイクの調子が悪いときだけ出る。
- * つながって動いているあいだは何も言わない (鳴っているかは下のクロマが見せている)。
+ * つながって動いているあいだは何も言わない (鳴っているかはレーンの点とチューナーが見せている)。
  */
 export function MicStatus({ source, message, warn, disabled, onRetry }: Props) {
   const connected = source === 'mic';

@@ -30,7 +30,7 @@ TrainerEngine (src/audio/engine.ts)  ← React を import していない
 
 | 頻度 | 例 | 渡し方 |
 |---|---|---|
-| 毎フレーム (60Hz) | レベルメーター、クロマの12本のバー、押さえ方の図の光り方、「いちばん近いコード」 | `onFrame` → `useFrame` フック → `ref.current.style` / `setAttribute` |
+| 毎フレーム (60Hz) | 押さえ方の図の光り方、弦ごとの鳴り、チューナーの針 | `onFrame` → `useFrame` フック → `ref.current.style` / `setAttribute` |
 | 秒に数回 | 拍、いまのコード、残り時間 | `on('tick')` → `setState`。値が変わったときだけ emit する |
 | コード1つごと | 採点結果 | `on('result')` → `setState` |
 | 練習の開始・終了 | 結果集計、記録の保存 | `on('running')` / `on('end')` → `setState` |
@@ -100,6 +100,10 @@ scoreTimeline(parseScore)  ┘              └→ ChordLane / Stage
 
 不応期110msがオンセット検出の下限なので、16分を拾えるのは約135BPMまで。
 
+チューナー (設定画面) だけは同じ大きい FFT から基本周波数を1つ拾う (`src/core/pitch.ts`)。
+クロマは12音階に畳んでしまい「何Hzか」が残らないので、別の計算にしてある。
+開いているあいだだけ `enableTuner()` で回す。
+
 楽譜の JSON を読むのは `src/core/score.ts` だけ。書式は [score-format.md](score-format.md)。
 
 楽譜そのものは**リポジトリの `songs/*.json` で管理する**。画面で打ち込むのではなく、
@@ -115,6 +119,8 @@ Claude に書かせてコミットし、アプリはタイトルで選ぶだけ�
 - **毎フレーム動くものは state に載せない。** `useFrame` の中で ref 経由で DOM を触る。
   ここを間違えると音が遅れる
 - **文言はコンポーネントに書かない。** `src/core/report.ts` に関数として足す。テストが書ける
+- **画面は練習と設定の2つ。** 出し分けは `useHashView` (`#/settings`) だけで、ルーターは入れていない。
+  練習中に触らないもの (チューニング、遅延補正、感度) は設定へ置き、練習画面は弾くことだけに使う
 - **状態は `App.tsx` に集める。** いまは `useState` だけで足りている。
   画面が増えて配線が見づらくなったら `useReducer` か、エンジンのイベントを
   `useSyncExternalStore` でまとめる形に寄せる。状態管理ライブラリはまだ要らない

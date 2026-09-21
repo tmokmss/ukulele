@@ -9,6 +9,7 @@
  */
 import { TEMPL } from '../core/chords';
 import { computeChroma, scoreChords } from '../core/chroma';
+import { detectPitch, type Pitch } from '../core/pitch';
 import {
   firstHitBeat,
   hitsBefore,
@@ -62,6 +63,8 @@ export type FrameInfo = {
   quiet: boolean;
   /** いちばん近いコード。判定できないときは null */
   heard: string | null;
+  /** 鳴っている1音の高さ。チューナーを開いているあいだだけ入る */
+  pitch: Pitch | null;
   /**
    * 練習の現在位置 (拍単位・小数)。カウントイン中は負、止まっているときは null。
    * 拍のバーを毎フレーム滑らかに動かすために渡す。
@@ -133,6 +136,8 @@ export class TrainerEngine {
   private fluxAvg = 0;
   private lastOnset = -1;
   private lastTickKey = '';
+  /** チューナーを見ている画面の数。0 のあいだは音程を出さない */
+  private tunerRefs = 0;
 
   constructor(settings: Settings) {
     this.settings = settings;
@@ -165,6 +170,14 @@ export class TrainerEngine {
 
   setSettings(s: Settings): void {
     this.settings = s;
+  }
+
+  /** チューナーを開いているあいだだけ音程の検出を回す。戻り値を呼ぶと止まる */
+  enableTuner(): () => void {
+    this.tunerRefs++;
+    return () => {
+      this.tunerRefs = Math.max(0, this.tunerRefs - 1);
+    };
   }
 
   get isRunning(): boolean {
@@ -510,17 +523,23 @@ export class TrainerEngine {
     const now = ctx.currentTime;
     this.detectOnset(now);
 
-    // コードを見ない曲では、重い FFT (窓340ms) ごと回さない
+    // コードを見ない曲では、重い FFT (窓340ms) ごと回さない。
+    // チューナーは同じスペクトルから音程を出すので、開いているあいだは回す
     const run = this.run;
     const judging = !run || run.plan.chordJudge;
+    const tuning = this.tunerRefs > 0;
     let maxDb = -200;
-    if (judging) {
+    let pitch: Pitch | null = null;
+    if (judging || tuning) {
       this.aBig.getFloatFrequencyData(this.bigDb);
       const binHz = ctx.sampleRate / this.aBig.fftSize;
-      maxDb = computeChroma(this.bigDb, binHz, this.frameCh);
-      for (let i = 0; i < 12; i++) this.live[i] += 0.35 * (this.frameCh[i] - this.live[i]);
+      if (tuning) pitch = detectPitch(this.bigDb, binHz);
+      if (judging) {
+        maxDb = computeChroma(this.bigDb, binHz, this.frameCh);
+        for (let i = 0; i < 12; i++) this.live[i] += 0.35 * (this.frameCh[i] - this.live[i]);
+      }
     }
-    this.emitFrame(judging, maxDb, run ? (now - run.t0) / run.beatDur : null);
+    this.emitFrame(judging, maxDb, run ? (now - run.t0) / run.beatDur : null, pitch);
     if (!run) return;
     const { tl, end } = run.plan;
     const tA = now - this.calibSec();
@@ -566,7 +585,7 @@ export class TrainerEngine {
     this.emit('tick', t);
   }
 
-  private emitFrame(judging: boolean, maxDb: number, pos: number | null): void {
+  private emitFrame(judging: boolean, maxDb: number, pos: number | null, pitch: Pitch | null): void {
     if (!this.frameListeners.size) return;
     let mx = 1e-9;
     for (let i = 0; i < 12; i++) if (this.live[i] > mx) mx = this.live[i];
@@ -577,7 +596,7 @@ export class TrainerEngine {
       const sc = scoreChords(this.live);
       if (sc && sc.bestScore > 0.62) heard = sc.best;
     }
-    const f: FrameInfo = { live: this.live, liveMax: mx, quiet, heard, pos };
+    const f: FrameInfo = { live: this.live, liveMax: mx, quiet, heard, pos, pitch };
     for (const fn of this.frameListeners) fn(f);
   }
 

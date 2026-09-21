@@ -3,6 +3,7 @@
  */
 import { median, timingClass } from './chroma';
 import { weakLabel } from './chords';
+import { TUNE_OK_CENTS } from './pitch';
 import { totalBeats, type Timeline } from './timeline';
 import type { RhythmTally, SegmentResult, SessionResult, TickInfo } from './types';
 
@@ -22,6 +23,18 @@ export function phaseText(tl: Timeline, tick: TickInfo | null): string {
     return `残り ${Math.floor(tick.leftSec / 60)}:${String(Math.floor(tick.leftSec % 60)).padStart(2, '0')}`;
   }
   return `${tick.slot + 1} コード目`;
+}
+
+/**
+ * チューナーの一言。cents は開放弦からのズレで、負なら弦が低い。
+ * ペグは締めると音が上がるので、低いときが「締める」
+ */
+export function describeTuning(cents: number): { text: string; tone: 'good' | 'warn' | 'miss' } {
+  const a = Math.abs(cents);
+  if (a <= TUNE_OK_CENTS) return { text: 'ぴったりです', tone: 'good' };
+  const peg = cents < 0 ? '締める' : 'ゆるめる';
+  if (a <= 25) return { text: `あと少し。ペグをほんの少し${peg}`, tone: 'warn' };
+  return { text: `${cents < 0 ? '低い' : '高い'}です。ペグを${peg}`, tone: 'miss' };
 }
 
 export type ResultText = {

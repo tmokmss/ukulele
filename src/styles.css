@@ -36,6 +36,10 @@ button:disabled{opacity:.45;cursor:default}
 
 .block{margin-top:26px;padding-top:18px;border-top:1.5px solid var(--line)}
 
+/* 見出しの右に、画面を移るボタンを置く */
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.head .btn-sub{flex:none;margin-top:2px}
+
 /* input source */
 .source{margin-top:16px}
 .source-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
@@ -140,15 +144,34 @@ select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px soli
 .sep{color:var(--muted);font-size:12px}
 .sub{font-size:12.5px;color:var(--muted);margin-top:14px}
 
-/* live analysis */
-.chroma{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;height:72px;align-items:end;margin-top:4px}
-.chroma div{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
-.chroma i{display:block;width:100%;min-height:2px;height:2px;border-radius:4px 4px 2px 2px;background:var(--muted);opacity:.55}
-.chroma .tg i{background:var(--accent);opacity:1}
-.chroma span{font-size:10px;color:var(--muted);margin-top:3px;font-weight:500}
-.chroma .tg span{color:var(--ink);font-weight:900}
-.heard{margin-top:8px;font-size:14px;color:var(--muted)}
-.heard b{color:var(--ink);font-size:18px;font-weight:900;margin-left:4px}
+/* tuner */
+.tstr{display:flex;gap:6px;margin-top:12px}
+.tstr div{flex:1;text-align:center;padding:6px 0 7px;border:1.5px solid var(--line);border-radius:14px;
+  background:var(--surface);font-size:10.5px;font-weight:700;color:var(--muted);line-height:1.3}
+.tstr b{display:block;font-size:17px;font-weight:900;color:var(--ink)}
+.tstr .on{border-color:var(--accent);border-width:2.5px;color:var(--accent)}
+.tstr .on b{color:var(--accent)}
+.tstr .on.ok{background:var(--good);border-color:var(--good);color:var(--accent-ink)}
+.tstr .on.ok b{color:var(--accent-ink)}
+
+.treading{display:flex;align-items:baseline;gap:10px;margin-top:14px;min-height:30px}
+.treading b{font-size:28px;font-weight:900;line-height:1}
+.treading span{font-size:13px;color:var(--muted);font-weight:700}
+
+.tneedle{position:relative;height:52px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);overflow:hidden}
+.tneedle .zone{position:absolute;top:0;bottom:0;left:45%;width:10%;background:var(--good);opacity:.16}
+.tneedle .mid{position:absolute;left:50%;top:7px;bottom:7px;width:2px;margin-left:-1px;background:var(--ink);opacity:.45;border-radius:1px}
+.tneedle .pin{position:absolute;top:7px;bottom:7px;width:5px;margin-left:-2.5px;border-radius:3px;background:var(--sun)}
+.tneedle .pin.good{background:var(--good)}
+.tneedle .pin.miss{background:var(--miss)}
+.tneedle .end{position:absolute;top:50%;transform:translateY(-50%);font-size:10.5px;color:var(--muted)}
+.tneedle .end.lo{left:9px}
+.tneedle .end.hi{right:9px}
+
+.tmsg{margin-top:10px;font-size:14px;font-weight:700;color:var(--muted);min-height:1.65em}
+.tmsg.good{color:var(--good)}
+.tmsg.warn{color:var(--sun)}
+.tmsg.miss{color:var(--miss)}
 
 /* results */
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
