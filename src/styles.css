@@ -151,4 +151,21 @@ select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px soli
 .spark polyline{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .spark circle{fill:var(--accent)}
 
+/* score */
+.scorebox{
+  display:block;width:100%;margin-top:4px;padding:10px 12px;
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  font-size:12.5px;line-height:1.6;color:var(--ink);background:var(--surface);
+  border:1.5px solid var(--line);border-radius:14px;resize:vertical;
+}
+.scorebox::placeholder{color:var(--muted);opacity:.7}
+.score .use{border-color:var(--accent);color:var(--accent);font-weight:700}
+.score .msg{white-space:pre-line}
+.fmt{margin-top:12px;font-size:12.5px;color:var(--muted)}
+.fmt summary{cursor:pointer;font-weight:700}
+.fmt ul{margin:8px 0 0;padding-left:1.2em}
+.fmt li{margin-top:3px}
+.fmt code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:0 4px}
+
 @media (prefers-reduced-motion: reduce){ *{transition:none !important} }

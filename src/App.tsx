@@ -1,22 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SourceState, TickInfo } from './audio/engine';
+import type { SourceState } from './audio/engine';
 import { Controls } from './components/Controls';
 import { HistoryPanel } from './components/HistoryPanel';
 import { LiveChroma } from './components/LiveChroma';
 import { Progression } from './components/Progression';
 import { MicStatus } from './components/MicStatus';
+import { ScorePanel } from './components/ScorePanel';
 import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './components/Stage';
 import { SummaryPanel } from './components/SummaryPanel';
 import { Tuning } from './components/Tuning';
 import { median } from './core/chroma';
-import { describeResult, summarize, type SessionSummary } from './core/report';
+import { describeResult, phaseText, summarize, type SessionSummary } from './core/report';
+import { parseScore, scoreTimeline } from './core/score';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
-import { buildTimeline, placeSlot, slotIndexAt } from './core/timeline';
-import type { Settings } from './core/types';
+import { buildTimeline, placeSlot, planEnd, slotIndexAt } from './core/timeline';
+import type { PracticeMode, Settings, TickInfo } from './core/types';
 import { useEngine, useFrame } from './hooks/useEngine';
 
 /** 自動補正に使うには、これだけのチェンジが拾えている必要がある */
 const AUTO_CALIB_MIN_SAMPLES = 6;
+
+/** テンポのスライダーが出せる範囲。楽譜の bpm もここに収める */
+const BPM_MIN = 40;
+const BPM_MAX = 180;
+const clampBpm = (v: number): number => Math.min(BPM_MAX, Math.max(BPM_MIN, v));
 
 let dotSeq = 0;
 
@@ -35,9 +42,19 @@ export default function App() {
   const [lastOffsets, setLastOffsets] = useState<number[]>([]);
   const [autoCalibDone, setAutoCalibDone] = useState(false);
 
+  // 楽譜は打つそばから読む。読めないあいだは進行の練習に落としておく
+  const score = useMemo(() => {
+    const r = settings.scoreText.trim() ? parseScore(settings.scoreText) : null;
+    return r?.ok ? r.score : null;
+  }, [settings.scoreText]);
+  const mode: PracticeMode = settings.mode === 'score' && score ? 'score' : 'drill';
+
   // 画面はタイムライン上の「いまどのコードか」だけを見る。
   // 拍の細かい動きはレーンが onFrame から直接受け取る。
-  const tl = useMemo(() => buildTimeline(settings.prog, settings.bpc), [settings.prog, settings.bpc]);
+  const tl = useMemo(
+    () => (mode === 'score' && score ? scoreTimeline(score) : buildTimeline(settings.prog, settings.bpc)),
+    [mode, score, settings.prog, settings.bpc],
+  );
   const [anchor, setAnchor] = useState(-1);
   const anchorRef = useRef(-1);
   useFrame(engine, ({ pos }) => {
@@ -88,9 +105,10 @@ export default function App() {
           setHistory(
             pushHistory({
               ts: Date.now(),
-              prog: settings.prog.join(' '),
+              prog: mode === 'score' && score ? score.chords.join(' ') : settings.prog.join(' '),
+              title: mode === 'score' && score ? score.title : undefined,
               bpm: settings.bpm,
-              bpc: settings.bpc,
+              bpc: mode === 'score' && score ? score.beatsPerBar : settings.bpc,
               n: sum.total,
               okRate: sum.okRate,
               meanAbs: sum.meanAbs == null ? null : Math.round(sum.meanAbs),
@@ -98,7 +116,7 @@ export default function App() {
           );
         }
       }),
-    [engine, settings],
+    [engine, settings, mode, score],
   );
 
   const onToggle = () => {
@@ -109,7 +127,8 @@ export default function App() {
     setDots([]);
     setSummary(null);
     setFinished(false);
-    if (engine.start()) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
+    const plan = { tl, bpm: settings.bpm, end: planEnd(tl, settings.bpm, settings.sessionSec) };
+    if (engine.start(plan)) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
   };
 
   const onAutoCalib = () => {
@@ -120,9 +139,8 @@ export default function App() {
   };
 
   // 鳴っているコードと、つぎにゲートへ来るコード。停止中は進行の先頭が「つぎ」になる
-  const chord = anchor >= 0 ? placeSlot(tl, anchor).chord : null;
-  const next = placeSlot(tl, anchor + 1).chord;
-  const phase = running && tick ? tick.phase : '最初のコード';
+  const chord = anchor >= 0 ? (placeSlot(tl, anchor)?.chord ?? null) : null;
+  const next = placeSlot(tl, anchor + 1)?.chord ?? null;
 
   return (
     <main>
@@ -146,17 +164,33 @@ export default function App() {
         anchor={anchor}
         chord={chord}
         next={next}
-        phase={phase}
-        bpc={settings.bpc}
+        phase={phaseText(tl, running ? tick : null)}
         dots={dots}
         feedback={feedback}
       />
 
       <LiveChroma engine={engine} chord={chord ?? next} />
 
-      <Controls settings={settings} patch={patch} running={running} onToggle={onToggle} />
+      <Controls
+        settings={settings}
+        patch={patch}
+        running={running}
+        onToggle={onToggle}
+        mode={mode}
+        scoreReady={score != null}
+      />
 
-      <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
+      {mode === 'drill' && (
+        <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
+      )}
+
+      <ScorePanel
+        text={settings.scoreText}
+        onChange={(scoreText) => patch({ scoreText })}
+        onUse={(s) => patch({ mode: 'score', bpm: s.bpm == null ? settings.bpm : clampBpm(s.bpm) })}
+        active={mode === 'score'}
+        running={running}
+      />
 
       <SummaryPanel summary={summary} stopped={finished} />
 

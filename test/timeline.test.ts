@@ -3,7 +3,15 @@
  * 画面のレーンはここから前後のコードを引くので、周回をまたいだ番号が要になる。
  */
 import { describe, expect, it } from 'vitest';
-import { buildTimeline, makeTimeline, placeRange, placeSlot, slotIndexAt } from '../src/core/timeline';
+import {
+  buildTimeline,
+  isSlotStart,
+  makeTimeline,
+  placeRange,
+  placeSlot,
+  planEnd,
+  slotIndexAt,
+} from '../src/core/timeline';
 
 const PROG = ['C', 'Am', 'F', 'G7'];
 
@@ -78,7 +86,7 @@ describe('placeSlot', () => {
 
   it('slotIndexAt が返した番号の区間は、その拍を含む', () => {
     for (const beat of [0, 1.5, 4, 9.9, 16, 23]) {
-      const p = placeSlot(tl, slotIndexAt(tl, beat));
+      const p = placeSlot(tl, slotIndexAt(tl, beat))!;
       expect(beat).toBeGreaterThanOrEqual(p.startBeat);
       expect(beat).toBeLessThan(p.startBeat + p.beats);
     }
@@ -95,5 +103,70 @@ describe('placeRange', () => {
   it('コードが1つだけの進行でも繰り返せる', () => {
     const tl = buildTimeline(['C'], 2);
     expect(placeRange(tl, 0, 2).map((p) => p.startBeat)).toEqual([0, 2, 4]);
+  });
+});
+
+describe('終わりのあるタイムライン (楽譜)', () => {
+  // 4拍 × 3コードを2周。楽譜はここでおしまい、という端がある
+  const tl = makeTimeline(
+    [
+      { chord: 'C', beats: 4 },
+      { chord: 'F', beats: 2 },
+      { chord: 'G7', beats: 2 },
+    ],
+    { barBeats: 4, cycles: 2 },
+  );
+
+  it('外に出た番号は null', () => {
+    expect(placeSlot(tl, -1)).toBeNull();
+    expect(placeSlot(tl, 6)).toBeNull();
+    expect(placeSlot(tl, 5)).toEqual({ index: 5, chord: 'G7', startBeat: 14, beats: 2 });
+  });
+
+  it('レーンに並べるときは、端から先を落とす', () => {
+    expect(placeRange(tl, 4, 9).map((p) => p.chord)).toEqual(['F', 'G7']);
+    expect(placeRange(tl, -1, 1).map((p) => p.chord)).toEqual(['C', 'F']);
+  });
+
+  it('終わりは回数ぶん', () => {
+    expect(planEnd(tl, 70, 60)).toEqual({ slots: 6, beat: 16 });
+  });
+});
+
+describe('isSlotStart', () => {
+  const tl = buildTimeline(['C', 'Am'], 4);
+
+  it('コードが変わる拍だけ true', () => {
+    expect(isSlotStart(tl, 0)).toBe(true);
+    expect(isSlotStart(tl, 2)).toBe(false);
+    expect(isSlotStart(tl, 4)).toBe(true);
+    expect(isSlotStart(tl, 8)).toBe(true);
+    expect(isSlotStart(tl, -4)).toBe(false);
+  });
+
+  it('長さがバラバラでも切れ目を拾う', () => {
+    const mixed = makeTimeline([
+      { chord: 'C', beats: 3 },
+      { chord: 'F', beats: 1 },
+    ]);
+    expect([0, 1, 2, 3, 4, 5].map((b) => isSlotStart(mixed, b))).toEqual([true, false, false, true, true, false]);
+  });
+});
+
+describe('planEnd', () => {
+  const tl = buildTimeline(['C', 'Am', 'F', 'G7'], 4);
+
+  it('練習時間をコードの切れ目に寄せる', () => {
+    // 70BPM で 60秒 = 70拍。4拍のコード17個 (68拍) と18個 (72拍) では、近い方
+    expect(planEnd(tl, 70, 60)).toEqual({ slots: 18, beat: 72 });
+    expect(planEnd(tl, 60, 60)).toEqual({ slots: 15, beat: 60 });
+  });
+
+  it('「止めるまで」は終わりがない', () => {
+    expect(planEnd(tl, 70, 0)).toBeNull();
+  });
+
+  it('短すぎてもコード1つは残す', () => {
+    expect(planEnd(tl, 70, 1)).toEqual({ slots: 1, beat: 4 });
   });
 });

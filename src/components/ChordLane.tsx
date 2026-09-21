@@ -16,8 +16,6 @@ type Props = {
   tl: Timeline;
   /** いま鳴っているコードの絶対番号。カウントイン中と停止中は -1 */
   anchor: number;
-  /** 1コードの拍数。先をどれだけ見せるかの目安に使う */
-  bpc: number;
 };
 
 /**
@@ -27,7 +25,7 @@ type Props = {
  * カードの入れ替えはコードが変わるときだけなので React に任せ、
  * 位置は transform を1回書き換えるだけにしている。
  */
-export function ChordLane({ engine, tl, anchor, bpc }: Props) {
+export function ChordLane({ engine, tl, anchor }: Props) {
   const laneRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const countRef = useRef<HTMLDivElement>(null);
@@ -43,16 +41,19 @@ export function ChordLane({ engine, tl, anchor, bpc }: Props) {
   }, []);
 
   const gateX = w * GATE_RATIO;
-  // 1コードぶんの先が見えるくらいに合わせる。コードが長いほどゆっくり流れる
-  const pxPerBeat = w > 0 ? (w - gateX) / Math.max(4, bpc * 1.6) : 0;
+  // 1コードぶんの先が見えるくらいに合わせる。コードが長いほどゆっくり流れる。
+  // 楽譜は小節ごとに長さが変わるので、平均で見る
+  const avgBeats = tl.cycleBeats / tl.slots.length;
+  const pxPerBeat = w > 0 ? (w - gateX) / Math.max(4, avgBeats * 1.6) : 0;
 
-  // まだ1つも鳴らしていないうちは「過去のコード」は無い
+  // まだ1つも鳴らしていないうちは「過去のコード」は無い。楽譜の終わりでは先が無くなる
   const cards = useMemo(
     () => placeRange(tl, Math.max(0, anchor - PAST), Math.max(AHEAD - 1, anchor + AHEAD)),
     [tl, anchor],
   );
-  const from = cards[0].startBeat;
-  const to = cards[cards.length - 1].startBeat + cards[cards.length - 1].beats;
+  const last = cards[cards.length - 1];
+  const from = cards.length ? cards[0].startBeat : 0;
+  const to = cards.length ? last.startBeat + last.beats : 0;
 
   useFrame(engine, ({ pos }) => {
     const strip = stripRef.current;

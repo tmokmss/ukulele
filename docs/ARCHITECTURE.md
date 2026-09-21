@@ -60,6 +60,23 @@ CSS は PoC からそのまま `src/styles.css` へ。ID セレクタ (`#fret`, 
 CSS Modules や Tailwind は入れていない。今の規模では1ファイルで足りるし、
 入れるならコンポーネントが増えて実際に困ってからでいい。
 
+## 練習するものは Timeline に集める
+
+「進行を bpc 拍ずつ延々と繰り返す」のも「楽譜を2周して終わる」のも、
+`src/core/timeline.ts` の `Timeline` (拍の上に並んだコードのスロット) に落としてから渡す。
+
+```
+buildTimeline(prog, bpc)   ┐
+                           ├→ Timeline ─→ engine.start({ tl, bpm, end })
+scoreTimeline(parseScore)  ┘              └→ ChordLane / Stage
+```
+
+エンジンは進行も楽譜も知らない。区間の長さは `placeSlot` で引き、
+クリックのアクセントは `barBeats`、終わりは `planEnd` が返す `{ slots, beat }` で決まる。
+新しい練習モード (ランダム、1コードだけ、など) を足すときも、Timeline を作る関数を1つ書けばいい。
+
+楽譜の JSON を読むのは `src/core/score.ts` だけ。書式は [score-format.md](score-format.md)。
+
 ## これからUIを足すとき
 
 - **音に関わるものはエンジンに足す。** 新しい解析や採点は `TrainerEngine` にメソッドとイベントを足し、
@@ -78,4 +95,4 @@ CSS Modules や Tailwind は入れていない。今の規模では1ファイル
 1. 実機 (スマホ + 実際のウクレレ) でのしきい値調整。フラックス値としきい値を画面に出すデバッグ表示を足すと楽
 2. 遅延の自動キャリブレーション (クリック音をマイクで拾って往復遅延を測る)
 3. オンセット検出を AudioWorklet に移して分解能を上げる。いまは rAF 依存で約16ms
-4. PWA化、Low-G対応、コードの追加
+4. PWA化、Low-G対応、コードの追加 (楽譜に書けるコードも `CHORDS` の16個に縛られている)

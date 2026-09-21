@@ -1,5 +1,8 @@
 export type SourceKind = 'none' | 'mic';
 
+/** 何を練習するか。drill は進行の繰り返し、score は読み込んだ楽譜 */
+export type PracticeMode = 'drill' | 'score';
+
 export type Settings = {
   bpm: number;
   /** 1コードあたりの拍数 */
@@ -12,6 +15,19 @@ export type Settings = {
   /** オンセット検出の感度 1..10 */
   sens: number;
   prog: string[];
+  mode: PracticeMode;
+  /** 楽譜の JSON。書きかけでもそのまま持っておく */
+  scoreText: string;
+};
+
+/** 練習のいまの位置。文言は report.ts が組み立てる */
+export type TickInfo = {
+  /** いまの拍。カウントイン中は負 */
+  beat: number;
+  /** いま鳴らすべきコードの絶対番号。カウントイン中は -1 */
+  slot: number;
+  /** 残り秒。終わりが決まっていなければ null */
+  leftSec: number | null;
 };
 
 /** コード1つぶんの採点結果 */
@@ -34,6 +50,8 @@ export type SegmentResult = {
 export type HistoryEntry = {
   ts: number;
   prog: string;
+  /** 楽譜モードのときの曲名。進行の練習では持たない */
+  title?: string;
   bpm: number;
   bpc: number;
   n: number;

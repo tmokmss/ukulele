@@ -20,20 +20,19 @@ type Props = {
   anchor: number;
   /** いま鳴っているコード。カウントイン中と停止中は null */
   chord: string | null;
-  /** つぎにゲートへ来るコード */
-  next: string;
+  /** つぎにゲートへ来るコード。楽譜を弾き終えたあとは null */
+  next: string | null;
   phase: string;
-  bpc: number;
   dots: LaneDot[];
   feedback: StageFeedback | null;
 };
 
-export function Stage({ engine, tl, anchor, chord, next, phase, bpc, dots, feedback }: Props) {
+export function Stage({ engine, tl, anchor, chord, next, phase, dots, feedback }: Props) {
   return (
     <section className="stage" aria-label="いまのコード">
       <p className="phase">{phase}</p>
 
-      <ChordLane engine={engine} tl={tl} anchor={anchor} bpc={bpc} />
+      <ChordLane engine={engine} tl={tl} anchor={anchor} />
 
       <div className="under">
         <div>
@@ -43,8 +42,8 @@ export function Stage({ engine, tl, anchor, chord, next, phase, bpc, dots, feedb
           <StringMeter engine={engine} chord={chord} />
         </div>
         <div className="nextshape">
-          <p className="lbl">つぎに押さえる形</p>
-          <FretMini chord={next} w={84} labels />
+          <p className="lbl">{next ? 'つぎに押さえる形' : 'おしまい'}</p>
+          {next && <FretMini chord={next} w={84} labels />}
         </div>
       </div>
 

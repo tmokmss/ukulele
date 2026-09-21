@@ -3,7 +3,26 @@
  */
 import { median, timingClass } from './chroma';
 import { weakLabel } from './chords';
-import type { SegmentResult } from './types';
+import { totalBeats, type Timeline } from './timeline';
+import type { SegmentResult, TickInfo } from './types';
+
+/**
+ * 画面の上に出す「いまどこか」。
+ * 終わりが決まっている楽譜は小節で、止めるまで繰り返す進行は残り時間で言う
+ */
+export function phaseText(tl: Timeline, tick: TickInfo | null): string {
+  if (!tick) return '最初のコード';
+  if (tick.beat < 0) return 'カウントイン';
+  const total = totalBeats(tl);
+  if (total != null) {
+    const bar = Math.min(Math.floor(tick.beat / tl.barBeats) + 1, Math.ceil(total / tl.barBeats));
+    return `${bar} / ${Math.ceil(total / tl.barBeats)} 小節`;
+  }
+  if (tick.leftSec != null) {
+    return `残り ${Math.floor(tick.leftSec / 60)}:${String(Math.floor(tick.leftSec % 60)).padStart(2, '0')}`;
+  }
+  return `${tick.slot + 1} コード目`;
+}
 
 export type ResultText = {
   /** 「C: ジャスト (+12ms)」 */
