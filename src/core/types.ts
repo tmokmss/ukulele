@@ -1,4 +1,4 @@
-export type SourceKind = 'none' | 'mic' | 'synth';
+export type SourceKind = 'none' | 'mic';
 
 export type Settings = {
   bpm: number;
@@ -39,5 +39,4 @@ export type HistoryEntry = {
   n: number;
   okRate: number;
   meanAbs: number | null;
-  src: SourceKind;
 };

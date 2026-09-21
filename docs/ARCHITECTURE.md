@@ -48,7 +48,7 @@ TrainerEngine (src/audio/engine.ts)  ← React を import していない
 | `computeChroma`, `scoreChords`, `timingClass`, `median` | `src/core/chroma.ts` (`ctx` 依存を引数 `binHz` に外出し) |
 | `showFeedback`, `showSummary` の文言組み立て | `src/core/report.ts` (`describeResult` / `summarize`) |
 | `store`, `S`, `saveSettings` | `src/core/storage.ts` |
-| `ensureCtx`, `useMic`, `strum`, `scheduler`, `detectOnset`, `startDrill`, `loop` | `src/audio/engine.ts` |
+| `ensureCtx`, `useMic`, `scheduler`, `detectOnset`, `startDrill`, `loop` | `src/audio/engine.ts` |
 | `renderStage`, `drawFret`, `renderLive`, `renderHistory` … | `src/components/*.tsx` |
 | `init()` の配線 | `src/App.tsx` |
 

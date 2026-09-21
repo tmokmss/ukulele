@@ -18,7 +18,7 @@ npm run dev      # http://localhost:5173/
 | `npm run build` | 型チェック + ビルド |
 | `npm test` | コード判定のテスト |
 
-マイクは HTTPS か localhost でしか使えない。マイクなしで動きを見るなら「テスト音で試す」を選ぶ。
+開くとすぐマイクにつなぐ。マイクは HTTPS か localhost でしか使えない。
 
 `main` に push すると GitHub Pages へ自動デプロイされる。
 

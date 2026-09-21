@@ -46,7 +46,6 @@ export function HistoryPanel({ history, onClear }: { history: HistoryEntry[]; on
               <li key={x.ts}>
                 <span>
                   <b>{x.prog.split(' ').join(' → ')}</b> {x.bpm}BPM
-                  {x.src === 'synth' ? ' テスト音' : ''}
                 </span>
                 <span>
                   {x.okRate}% / {x.meanAbs == null ? '…' : `${x.meanAbs}ms`}　{d.getMonth() + 1}/{d.getDate()}

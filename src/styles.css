@@ -64,7 +64,6 @@ button:disabled{opacity:.45;cursor:default}
 .fret .dot{fill:var(--accent)}
 .fret .open{fill:var(--accent);stroke:var(--accent);stroke-width:2}
 .fret text{fill:var(--muted);font-size:10px;font-weight:700;text-anchor:middle;font-family:inherit}
-.play-one{margin-top:8px;border:1.5px solid var(--line);background:none;border-radius:999px;padding:5px 12px;font-size:12.5px;width:100%}
 
 .beats{display:flex;gap:8px;margin-top:14px}
 .beats i{flex:1;height:10px;border-radius:5px;background:var(--line);transition:background .06s}

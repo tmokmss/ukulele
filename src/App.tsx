@@ -4,7 +4,7 @@ import { Controls } from './components/Controls';
 import { HistoryPanel } from './components/HistoryPanel';
 import { LiveChroma } from './components/LiveChroma';
 import { Progression } from './components/Progression';
-import { SourcePicker } from './components/SourcePicker';
+import { MicStatus } from './components/MicStatus';
 import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './components/Stage';
 import { SummaryPanel } from './components/SummaryPanel';
 import { Tuning } from './components/Tuning';
@@ -43,6 +43,10 @@ export default function App() {
   }, []);
 
   useEffect(() => engine.on('source', setSource), [engine]);
+  // 開いたらすぐつなぐ。拒否されたら MicStatus に再試行ボタンが出る
+  useEffect(() => {
+    void engine.useMic();
+  }, [engine]);
   useEffect(() => engine.on('running', setRunning), [engine]);
   useEffect(() => engine.on('tick', setTick), [engine]);
   useEffect(() => engine.on('calib', (ms) => patch({ calibMs: ms })), [engine, patch]);
@@ -76,7 +80,6 @@ export default function App() {
               n: sum.total,
               okRate: sum.okRate,
               meanAbs: sum.meanAbs == null ? null : Math.round(sum.meanAbs),
-              src: engine.source,
             }),
           );
         }
@@ -114,13 +117,13 @@ export default function App() {
         <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
       </header>
 
-      <SourcePicker
+      <MicStatus
         engine={engine}
         source={source.source}
         message={source.message}
         warn={source.warn}
         disabled={running}
-        onPick={(kind) => (kind === 'mic' ? void engine.useMic() : engine.useSynth())}
+        onRetry={() => void engine.useMic()}
       />
 
       <Stage
@@ -132,9 +135,6 @@ export default function App() {
         bpc={settings.bpc}
         dots={dots}
         feedback={feedback}
-        showPlayOne={source.source === 'synth'}
-        playDisabled={running}
-        onPlayOne={() => engine.playCurrentChord()}
       />
 
       <LiveChroma engine={engine} chord={chord} />

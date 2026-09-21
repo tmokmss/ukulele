@@ -20,12 +20,9 @@ type Props = {
   bpc: number;
   dots: LaneDot[];
   feedback: StageFeedback | null;
-  showPlayOne: boolean;
-  playDisabled: boolean;
-  onPlayOne: () => void;
 };
 
-export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback, showPlayOne, playDisabled, onPlayOne }: Props) {
+export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback }: Props) {
   return (
     <section className="stage" aria-label="いまのコード">
       <div className="stage-top">
@@ -36,14 +33,7 @@ export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback, s
             つぎは<b>{next}</b>
           </p>
         </div>
-        <div>
-          <FretDiagram engine={engine} chord={chord} />
-          {showPlayOne && (
-            <button type="button" className="play-one" disabled={playDisabled} onClick={onPlayOne}>
-              この音を鳴らす
-            </button>
-          )}
-        </div>
+        <FretDiagram engine={engine} chord={chord} />
       </div>
 
       <div className="beats" aria-hidden="true">
@@ -82,7 +72,7 @@ export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback, s
           </>
         ) : (
           <>
-            <p className="t">入力を選んで、練習を始めてください。</p>
+            <p className="t">準備ができたら、練習を始めてください。</p>
             <p className="note" style={{ marginTop: 2 }}>
               押さえ方の図は、聞こえている音ほど濃く光ります。光らない弦はミュートしているかもしれません。
             </p>

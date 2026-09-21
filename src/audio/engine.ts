@@ -7,7 +7,7 @@
  * UI へは「拍やコードが変わった」「1コードぶんの採点が出た」といった粒度のイベントで伝え、
  * 毎フレームの値 (レベルメーター、クロマ、押さえ方の光り方) だけ onFrame で直接渡す。
  */
-import { CHORDS, OPEN, TEMPL } from '../core/chords';
+import { TEMPL } from '../core/chords';
 import { computeChroma, scoreChords } from '../core/chroma';
 import type { SegmentResult, Settings, SourceKind } from '../core/types';
 
@@ -15,6 +15,8 @@ const COUNT_IN = 4;
 /** オンセット検出に使う帯域。クリック音 (2000/2600Hz) を避けてある */
 const ONSET_LO_HZ = 240;
 const ONSET_HI_HZ = 1300;
+
+const MIC_OK = 'マイクにつながりました。ウクレレを鳴らすと下のグラフが動きます。';
 
 export type SourceState = { source: SourceKind; message: string | null; warn: boolean };
 
@@ -50,8 +52,6 @@ type EventMap = {
   end: SegmentResult[];
 };
 
-type Plan = { chord: string; late: number; mute: number };
-
 type Run = {
   t0: number;
   beatDur: number;
@@ -63,7 +63,6 @@ type Run = {
   acc: Map<number, { sum: Float32Array; n: number }>;
   finalized: number;
   results: SegmentResult[];
-  plans: Record<number, Plan>;
   timer: ReturnType<typeof setInterval>;
 };
 
@@ -74,7 +73,6 @@ export class TrainerEngine {
 
   private ctx: AudioContext | null = null;
   private inputBus!: GainNode;
-  private synthBus!: GainNode;
   private aBig!: AnalyserNode;
   private aSmall!: AnalyserNode;
   private bigDb!: Float32Array<ArrayBuffer>;
@@ -84,10 +82,10 @@ export class TrainerEngine {
   private sLo = 0;
   private sHi = 0;
   private rafId = 0;
+  private detachResume: (() => void) | null = null;
 
   private micStream: MediaStream | null = null;
   private micNode: MediaStreamAudioSourceNode | null = null;
-  private activeVoices: GainNode[] = [];
 
   source: SourceKind = 'none';
   private run: Run | null = null;
@@ -97,8 +95,6 @@ export class TrainerEngine {
   private fluxAvg = 0;
   private lastOnset = -1;
   private lastTickKey = '';
-  /** 押さえ方の図を光らせる対象。練習中は現在のコード、停止中は表示中のコード */
-  private displayChord: string | null = null;
 
   constructor(settings: Settings) {
     this.settings = settings;
@@ -131,7 +127,6 @@ export class TrainerEngine {
 
   setSettings(s: Settings): void {
     this.settings = s;
-    if (!this.run) this.displayChord = s.prog[0] ?? null;
   }
 
   get isRunning(): boolean {
@@ -148,7 +143,6 @@ export class TrainerEngine {
     const ctx = new AC({ latencyHint: 'interactive' });
     this.ctx = ctx;
     this.inputBus = ctx.createGain();
-    this.synthBus = ctx.createGain();
     // 大きい FFT はコード判定用。C4 (約262Hz) と隣の半音の差 15Hz を分けるために 16384 必要
     this.aBig = ctx.createAnalyser();
     this.aBig.fftSize = 16384;
@@ -165,8 +159,6 @@ export class TrainerEngine {
     this.aBig.connect(sink);
     this.aSmall.connect(sink);
     sink.connect(ctx.destination);
-    this.synthBus.connect(this.inputBus);
-    this.synthBus.connect(ctx.destination);
 
     this.bigDb = new Float32Array(this.aBig.frequencyBinCount);
     this.smallDb = new Float32Array(this.aSmall.frequencyBinCount);
@@ -176,6 +168,30 @@ export class TrainerEngine {
     this.sLo = Math.max(1, Math.floor(ONSET_LO_HZ / hz));
     this.sHi = Math.ceil(ONSET_HI_HZ / hz);
     this.rafId = requestAnimationFrame(this.loop);
+    this.armResume();
+  }
+
+  /**
+   * ブラウザの自動再生制限で、AudioContext は suspended のまま作られることがある。
+   * その場合は解析が進まないので、最初の操作で resume する。
+   */
+  private armResume(): void {
+    const onGesture = (): void => {
+      const ctx = this.ctx;
+      if (!ctx) return;
+      void ctx.resume().then(() => {
+        if (ctx.state !== 'running') return;
+        this.detachResume?.();
+        if (this.source === 'mic') this.emitSource(MIC_OK, false);
+      });
+    };
+    window.addEventListener('pointerdown', onGesture);
+    window.addEventListener('keydown', onGesture);
+    this.detachResume = () => {
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('keydown', onGesture);
+      this.detachResume = null;
+    };
   }
 
   private dropMic(): void {
@@ -193,20 +209,40 @@ export class TrainerEngine {
     }
   }
 
+  private micPending: Promise<void> | null = null;
+  /** dispose をまたいだ非同期処理を捨てるための世代番号 */
+  private generation = 0;
+
+  /** 開いた直後に自動で呼ばれる。拒否されたあとは再試行ボタンから呼ばれる */
   async useMic(): Promise<void> {
-    if (this.run) return;
+    if (this.run || this.source === 'mic') return;
+    if (this.micPending) return this.micPending;
+    this.micPending = this.connectMic().finally(() => {
+      this.micPending = null;
+    });
+    return this.micPending;
+  }
+
+  private async connectMic(): Promise<void> {
+    const gen = this.generation;
     this.ensureCtx();
     const ctx = this.ctx!;
     if (!navigator.mediaDevices?.getUserMedia) {
       this.source = 'none';
-      this.emitSource('この画面ではマイクが使えません。localhost か GitHub Pages など HTTPS で開くと使えます。テスト音ならこのまま試せます。', true);
+      this.emitSource('この画面ではマイクが使えません。HTTPS か localhost で開いてください。', true);
       return;
     }
     try {
       // 3つとも false にしないと、楽器の音が加工されて検出が壊れる
-      this.micStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
       });
+      // 許可を待つ間に dispose されていたら、掴んだストリームは捨てる
+      if (gen !== this.generation) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      this.micStream = stream;
       this.micNode = ctx.createMediaStreamSource(this.micStream);
       this.micNode.connect(this.inputBus);
       this.source = 'mic';
@@ -216,88 +252,24 @@ export class TrainerEngine {
         const est = ((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + inLat + 0.03) * 1000;
         this.emit('calib', Math.min(300, Math.max(0, Math.round(est / 5) * 5)));
       }
-      this.emitSource('マイクにつながりました。ウクレレを鳴らすと下のグラフが動きます。', false);
+      this.emitSource(ctx.state === 'running' ? MIC_OK : `${MIC_OK} 画面を一度タップすると動き始めます。`, false);
     } catch (err) {
+      if (gen !== this.generation) return;
       this.dropMic();
       this.source = 'none';
       const name = err instanceof Error ? err.name : 'error';
       const denied = name === 'NotAllowedError' || name === 'SecurityError';
       this.emitSource(
         denied
-          ? 'マイクが許可されませんでした。ブラウザの設定でこのサイトのマイクを許可してください。テスト音ならこのまま試せます。'
-          : `マイクを開けませんでした (${name})。テスト音ならこのまま試せます。`,
+          ? 'マイクが許可されませんでした。ブラウザのアドレスバーの鍵アイコンから、このサイトのマイクを許可してください。'
+          : `マイクを開けませんでした (${name})。`,
         true,
       );
     }
   }
 
-  useSynth(): void {
-    if (this.run) return;
-    this.ensureCtx();
-    this.dropMic();
-    this.source = 'synth';
-    this.emitSource('テスト音が自動で演奏します。わざとズレやミュートを混ぜています。', false);
-  }
-
   private emitSource(message: string | null, warn: boolean): void {
     this.emit('source', { source: this.source, message, warn });
-  }
-
-  // ---------- synth ----------
-  private damp(t: number): void {
-    for (const g of this.activeVoices) {
-      try {
-        if (g.gain.cancelAndHoldAtTime) g.gain.cancelAndHoldAtTime(t);
-        else g.gain.cancelScheduledValues(t);
-        g.gain.setTargetAtTime(0, t, 0.012);
-      } catch {
-        // 停止済みのノード
-      }
-    }
-    this.activeVoices = [];
-  }
-
-  private pluck(midi: number, t: number, vel: number): void {
-    const ctx = this.ctx!;
-    const f = 440 * Math.pow(2, (midi - 69) / 12);
-    const o = ctx.createOscillator();
-    o.type = 'triangle';
-    o.frequency.value = f;
-    const o2 = ctx.createOscillator();
-    o2.type = 'sine';
-    o2.frequency.value = f * 2;
-    const g = ctx.createGain();
-    const g2 = ctx.createGain();
-    g2.gain.value = 0.22;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(vel, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0006, t + 1.3);
-    o.connect(g);
-    o2.connect(g2);
-    g2.connect(g);
-    g.connect(this.synthBus);
-    o.start(t);
-    o2.start(t);
-    o.stop(t + 1.4);
-    o2.stop(t + 1.4);
-    this.activeVoices.push(g);
-  }
-
-  /** mute に弦番号を渡すと、その弦だけ鳴らさない (ミュートの再現) */
-  private strum(name: string, t: number, mute: number): void {
-    const ctx = this.ctx;
-    if (!ctx || !CHORDS[name]) return;
-    t = Math.max(t, ctx.currentTime + 0.005);
-    this.damp(t);
-    CHORDS[name].forEach((f, i) => {
-      if (i !== mute) this.pluck(OPEN[i] + f, t + i * 0.012, 0.2);
-    });
-  }
-
-  /** 「この音を鳴らす」ボタン用 */
-  playCurrentChord(): void {
-    if (!this.ctx || this.source !== 'synth' || this.run || !this.displayChord) return;
-    this.strum(this.displayChord, this.ctx.currentTime + 0.02, -1);
   }
 
   // ---------- metronome ----------
@@ -316,21 +288,6 @@ export class TrainerEngine {
     o.stop(t + 0.07);
   }
 
-  /** テスト音モードで、わざとズレ・ミュート・押さえ間違いを混ぜる */
-  private planFor(s: number): Plan {
-    const run = this.run!;
-    if (run.plans[s]) return run.plans[s];
-    const r = Math.random;
-    const prog = this.settings.prog;
-    const wrong = s > 0 && prog.length > 1 && r() < 0.08;
-    const p: Plan = {
-      chord: wrong ? prog[(s - 1) % prog.length] : prog[s % prog.length],
-      late: r() < 0.35 ? 0.04 + r() * 0.09 : 0,
-      mute: r() < 0.2 ? Math.floor(r() * 4) : -1,
-    };
-    return (run.plans[s] = p);
-  }
-
   private scheduler = (): void => {
     const run = this.run;
     const ctx = this.ctx;
@@ -342,10 +299,6 @@ export class TrainerEngine {
       const t = run.t0 + k * run.beatDur;
       if (run.endK == null || k < run.endK) {
         if (clickOn) this.click(t, k >= 0 ? k % bpc === 0 : k === -COUNT_IN);
-        if (this.source === 'synth' && k >= 0) {
-          const p = this.planFor(Math.floor(k / bpc));
-          this.strum(p.chord, t + (Math.random() - 0.5) * 0.04 + (k % bpc === 0 ? p.late : 0), p.mute);
-        }
       }
       run.nextK++;
     }
@@ -353,7 +306,7 @@ export class TrainerEngine {
 
   // ---------- analysis ----------
   private calibSec(): number {
-    return this.source === 'mic' ? (this.settings.calibMs || 0) / 1000 : 0.02;
+    return (this.settings.calibMs || 0) / 1000;
   }
 
   /** スペクトルフラックスでストロークの立ち上がりを拾う */
@@ -398,7 +351,7 @@ export class TrainerEngine {
   // ---------- drill ----------
   start(): boolean {
     if (this.source === 'none') {
-      this.emitSource('先に「マイクを使う」か「テスト音で試す」を選んでください。', true);
+      this.emitSource('先にマイクを許可してください。', true);
       return false;
     }
     this.ensureCtx();
@@ -418,8 +371,7 @@ export class TrainerEngine {
       acc: new Map(),
       finalized: 0,
       results: [],
-      plans: {},
-      timer: setInterval(this.scheduler, 25),
+        timer: setInterval(this.scheduler, 25),
     };
     this.lastTickKey = '';
     this.scheduler();
@@ -437,10 +389,8 @@ export class TrainerEngine {
     // 手で止めたときは、そのコードを6割以上弾いていれば採点に入れる
     if (byUser && s >= 0 && tA - run.t0 - s * run.segDur > 0.6 * run.segDur) this.finalizeUpTo(s + 1);
     else this.finalizeUpTo(s);
-    this.damp(ctx.currentTime);
     const results = run.results;
     this.run = null;
-    this.displayChord = this.settings.prog[0] ?? null;
     this.emit('running', false);
     this.emit('end', results);
   }
@@ -529,7 +479,6 @@ export class TrainerEngine {
   };
 
   private pushTick(chord: string, next: string, phase: string, beat: number): void {
-    this.displayChord = chord;
     const key = `${chord}|${next}|${phase}|${beat}`;
     if (key === this.lastTickKey) return;
     this.lastTickKey = key;
@@ -551,11 +500,17 @@ export class TrainerEngine {
   }
 
   dispose(): void {
+    // React の StrictMode は開発時にマウントを2回走らせる。捨てたあと同じ
+    // インスタンスが再利用されるので、次の useMic() がやり直せる状態まで戻す
+    this.generation++;
+    this.source = 'none';
+    this.micPending = null;
     if (this.run) {
       clearInterval(this.run.timer);
       this.run = null;
     }
     cancelAnimationFrame(this.rafId);
+    this.detachResume?.();
     this.dropMic();
     void this.ctx?.close();
     this.ctx = null;
