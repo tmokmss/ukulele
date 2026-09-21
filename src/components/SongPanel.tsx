@@ -67,11 +67,6 @@ export function SongPanel({ songId, active, running, bpm, onPick }: Props) {
           {e.error}
         </p>
       ))}
-
-      <p className="note">
-        楽譜は <code>songs/*.json</code> にあります。増やすときは Claude に <code>ukulele-score</code>{' '}
-        スキルで書かせて、<code>npm run score</code> で確かめてからコミットしてください。
-      </p>
     </section>
   );
 }
