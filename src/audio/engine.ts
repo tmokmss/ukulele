@@ -18,6 +18,14 @@ const ONSET_HI_HZ = 1300;
 
 const MIC_OK = 'マイクにつながりました。ウクレレを鳴らすと下のグラフが動きます。';
 
+/**
+ * 1コードぶんの音を聞く長さ (秒)。
+ * 区間の終わりまで足し込むと、採点が出るのが「次のコードを鳴らす瞬間」になって
+ * いちばん邪魔なところに割り込む。鳴らした直後がいちばん音が大きいので、
+ * ここで窓を閉じてコードの途中で返す。
+ */
+const LISTEN_SEC = 1.0;
+
 export type SourceState = { source: SourceKind; message: string | null; warn: boolean };
 
 /** 画面の見出しに出す文字列。コードそのものはタイムライン側が持つ */
@@ -460,11 +468,12 @@ export class TrainerEngine {
 
     // 解析は補正後の時刻で区切る
     const sA = Math.floor((tA - run.t0) / run.segDur);
+    const local = tA - run.t0 - sA * run.segDur;
+    // 前のコードの残響と FFT 窓 (約340ms) を避けてから集計を始める
+    const guard = run.segDur >= 1.0 ? 0.32 : 0.18;
+    const listenEnd = Math.min(run.segDur - 0.03, guard + LISTEN_SEC);
     if (sA >= 0 && (run.endSeg == null || sA < run.endSeg) && maxDb > -76) {
-      const local = tA - run.t0 - sA * run.segDur;
-      // 前のコードの残響と FFT 窓 (約340ms) を避けてから集計を始める
-      const guard = run.segDur >= 1.0 ? 0.32 : 0.18;
-      if (local >= guard && local <= run.segDur - 0.03) {
+      if (local >= guard && local <= listenEnd) {
         let a = run.acc.get(sA);
         if (!a) {
           a = { sum: new Float32Array(12), n: 0 };
@@ -474,7 +483,9 @@ export class TrainerEngine {
         a.n++;
       }
     }
-    if (sA > run.finalized) this.finalizeUpTo(sA);
+    // 聞く窓が閉じたコードから順に確定させる。区間の終わりは待たない
+    if (sA >= 0 && local >= listenEnd) this.finalizeUpTo(sA + 1);
+    else if (sA > run.finalized) this.finalizeUpTo(sA);
     if (run.endSeg != null && tA >= run.t0 + run.endSeg * run.segDur + 0.05) this.stop(false);
   };
 
