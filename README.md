@@ -16,12 +16,15 @@ npm run dev      # http://localhost:5173/
 |---|---|
 | `npm run dev` | 開発サーバー |
 | `npm run build` | 型チェック + ビルド |
-| `npm test` | コード判定のテスト |
+| `npm test` | コード判定・楽譜・タイムラインのテスト |
+| `npm run score -- song.json` | 楽譜の JSON が読めるか確かめる |
 
 開くとすぐマイクにつなぐ。マイクは HTTPS か localhost でしか使えない。
 
 コード進行の繰り返しのほかに、コード譜を JSON で貼ると曲を通して練習できる。
-書き方は [docs/score-format.md](docs/score-format.md)。
+ストロークを書けば、1打ごとのタイミングも採点する。書き方は [docs/score-format.md](docs/score-format.md)。
+楽譜は Claude に書かせる前提で、スキル (`.claude/skills/ukulele-score/`) と
+検算コマンド `npm run score -- song.json` を用意してある。
 
 `main` に push すると GitHub Pages へ自動デプロイされる。
 

@@ -10,13 +10,33 @@ export function SummaryPanel({ summary, stopped }: Props) {
         <p className="empty">{stopped ? '1コードぶん弾き終わる前に止まりました。' : '練習が終わるとここに結果が出ます。'}</p>
       ) : (
         <>
-          <div className="stats">
-            <div>
-              <b>
-                {summary.okN}/{summary.total}
-              </b>
-              <span>コードが合った回数</span>
+          {summary.rhythm ? (
+            <div className="stats">
+              <div>
+                <b>
+                  {summary.rhythm.played}/{summary.rhythm.expected}
+                </b>
+                <span>鳴らせたストローク{summary.rhythm.extra ? ` (余分 ${summary.rhythm.extra})` : ''}</span>
+              </div>
+              <div>
+                <b>{summary.rhythm.meanAbs == null ? '…' : `${Math.round(summary.rhythm.meanAbs)}ms`}</b>
+                <span>ストロークの平均ズレ</span>
+              </div>
+              <div>
+                <b>{summary.rhythm.evenness}</b>
+                <span>強さの粒</span>
+              </div>
             </div>
+          ) : null}
+          <div className="stats" style={summary.rhythm ? { marginTop: 12 } : undefined}>
+            {summary.chordJudged && (
+              <div>
+                <b>
+                  {summary.okN}/{summary.total}
+                </b>
+                <span>コードが合った回数</span>
+              </div>
+            )}
             <div>
               <b>{summary.meanAbs == null ? '…' : `${Math.round(summary.meanAbs)}ms`}</b>
               <span>チェンジの平均ズレ</span>

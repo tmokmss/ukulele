@@ -144,3 +144,101 @@ describe('タイムラインに乗せる', () => {
     expect(scoreTimeline(score).cycleBeats).toBe(48);
   });
 });
+
+describe('ストローク', () => {
+  it('文字数がその小節の分割数になる', () => {
+    // 8文字 = 8分。"-" は鳴らさない
+    expect(ok('{"strum":"D-DU-UDU","bars":["C"]}').hits).toEqual([
+      { beat: 0, dir: 'D' },
+      { beat: 1, dir: 'D' },
+      { beat: 1.5, dir: 'U' },
+      { beat: 2.5, dir: 'U' },
+      { beat: 3, dir: 'D' },
+      { beat: 3.5, dir: 'U' },
+    ]);
+  });
+
+  it('4文字なら4分、16文字なら16分', () => {
+    expect(ok('{"strum":"DDDD","bars":["C"]}').hits.map((h) => h.beat)).toEqual([0, 1, 2, 3]);
+    expect(ok('{"strum":"DUDUDUDUDUDUDUDU","bars":["C"]}').hits.length).toBe(16);
+  });
+
+  it('小節ごとに同じパターンが並ぶ', () => {
+    expect(ok('{"strum":"D-D-","bars":["C","F"]}').hits.map((h) => h.beat)).toEqual([0, 2, 4, 6]);
+  });
+
+  it('ミュートと矢印も読む', () => {
+    expect(ok('{"strum":"D x ↓ ↑","bars":["C"]}').hits.map((h) => h.dir)).toEqual(['D', 'x', 'D', 'U']);
+  });
+
+  it('割り切れない文字数は、使える数を教えて断る', () => {
+    const e = ng('{"strum":"DDD","bars":["C"]}');
+    expect(e).toContain('3文字');
+    expect(e).toContain('4拍');
+  });
+
+  it('知らない記号と、1回も鳴らさないパターンは断る', () => {
+    expect(ng('{"strum":"DZDZ","bars":["C"]}')).toContain('D (ダウン)');
+    expect(ng('{"strum":"----","bars":["C"]}')).toContain('1回も鳴らしません');
+  });
+
+  it('指定がなければ打点は空 (コードの切れ目だけ見る)', () => {
+    expect(ok('{"bars":["C"]}').hits).toEqual([]);
+  });
+});
+
+describe('セクション', () => {
+  it('繰り返しを展開して並べる', () => {
+    const s = ok('{"sections":[{"name":"A","repeat":2,"bars":["C","F"]},{"name":"B","bars":["G7"]}]}');
+    expect(s.bars).toBe(5);
+    expect(s.slots.map((x) => x.chord)).toEqual(['C', 'F', 'C', 'F', 'G7']);
+    expect(s.sections).toEqual([
+      { name: 'A', bars: 2, repeat: 2 },
+      { name: 'B', bars: 1, repeat: 1 },
+    ]);
+  });
+
+  it('ストロークはセクションごとに変えられる', () => {
+    const s = ok('{"strum":"D-D-","sections":[{"bars":["C"]},{"strum":"DUDU","bars":["F"]}]}');
+    expect(s.hits.map((h) => h.beat)).toEqual([0, 2, 4, 5, 6, 7]);
+    // 混ざっているので「1つのパターン」としては出さない
+    expect(s.strum).toBeNull();
+  });
+
+  it('小節をまたいでコードを伸ばせる', () => {
+    const s = ok('{"sections":[{"bars":["C","."]},{"bars":["F"]}]}');
+    expect(s.slots).toEqual([
+      { chord: 'C', beats: 8 },
+      { chord: 'F', beats: 4 },
+    ]);
+  });
+
+  it('セクションの間違いは名前で示す', () => {
+    expect(ng('{"sections":[{"name":"サビ","bars":["C"],"repeat":0}]}')).toContain('サビ');
+    expect(ng('{"sections":[{"name":"A"}]}')).toContain('bars がありません');
+  });
+});
+
+describe('細かい位置', () => {
+  it('4拍を8つに割れる (3拍半で次のコードに食い込む)', () => {
+    // C - - - - F - -  →  C が5つぶん (2.5拍)、F が3つぶん (1.5拍)
+    expect(ok('{"bars":["C - - - - F - -"]}').slots).toEqual([
+      { chord: 'C', beats: 2.5 },
+      { chord: 'F', beats: 1.5 },
+    ]);
+  });
+
+  it('16分まで。それより細かいと断る', () => {
+    expect(ok('{"bars":["C . . . . . . . . . . . . . . ."]}').slots[0].beats).toBe(4);
+    expect(ng('{"bars":["C . . . . . . . . . . . . . . . ."]}')).toContain('割れません');
+  });
+});
+
+describe('エラーは全部まとめて返す', () => {
+  it('小節ごとの間違いを並べる', () => {
+    const e = ng('{"bars":["C F G7","Bm","C F G7 Am Dm"]}');
+    expect(e).toContain('1小節目');
+    expect(e).toContain('3小節目');
+    expect(e).toContain('Bm');
+  });
+});

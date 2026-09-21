@@ -13,7 +13,7 @@ import { median } from './core/chroma';
 import { describeResult, phaseText, summarize, type SessionSummary } from './core/report';
 import { parseScore, scoreTimeline } from './core/score';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
-import { buildTimeline, placeSlot, planEnd, slotIndexAt } from './core/timeline';
+import { buildTimeline, canJudgeChords, placeSlot, planEnd, slotIndexAt } from './core/timeline';
 import type { PracticeMode, Settings, TickInfo } from './core/types';
 import { useEngine, useFrame } from './hooks/useEngine';
 
@@ -55,6 +55,8 @@ export default function App() {
     () => (mode === 'score' && score ? scoreTimeline(score) : buildTimeline(settings.prog, settings.bpc)),
     [mode, score, settings.prog, settings.bpc],
   );
+  // 速い曲では、クロマ用の FFT の窓 (約340ms) が足りない。そのときはリズムだけ見る
+  const chordJudge = canJudgeChords(tl, settings.bpm);
   const [anchor, setAnchor] = useState(-1);
   const anchorRef = useRef(-1);
   useFrame(engine, ({ pos }) => {
@@ -81,12 +83,12 @@ export default function App() {
   useEffect(() => engine.on('running', setRunning), [engine]);
   useEffect(() => engine.on('tick', setTick), [engine]);
   useEffect(() => engine.on('calib', (ms) => patch({ calibMs: ms })), [engine, patch]);
-  useEffect(() => engine.on('result', (r) => setFeedback(describeResult(r))), [engine]);
+  useEffect(() => engine.on('result', (r) => setFeedback(describeResult(r, chordJudge))), [engine, chordJudge]);
 
   useEffect(
     () =>
-      engine.on('onset', ({ ms, isChange }) =>
-        setDots((d) => [...d, { id: ++dotSeq, ms, big: isChange }].slice(-LANE_DOT_MAX)),
+      engine.on('onset', ({ ms, isChange, extra }) =>
+        setDots((d) => [...d, { id: ++dotSeq, ms, big: isChange, extra }].slice(-LANE_DOT_MAX)),
       ),
     [engine],
   );
@@ -94,8 +96,8 @@ export default function App() {
   // 記録に残すのは終了時点の設定。settings が変わるたび貼り直す
   useEffect(
     () =>
-      engine.on('end', (results) => {
-        const sum = summarize(results);
+      engine.on('end', (session) => {
+        const sum = summarize(session);
         setSummary(sum);
         setFinished(true);
         setTick(null);
@@ -110,7 +112,8 @@ export default function App() {
               bpm: settings.bpm,
               bpc: mode === 'score' && score ? score.beatsPerBar : settings.bpc,
               n: sum.total,
-              okRate: sum.okRate,
+              okRate: sum.chordJudged ? sum.okRate : (sum.rhythm?.playRate ?? 0),
+              rhythmOnly: sum.chordJudged ? undefined : true,
               meanAbs: sum.meanAbs == null ? null : Math.round(sum.meanAbs),
             }),
           );
@@ -127,7 +130,7 @@ export default function App() {
     setDots([]);
     setSummary(null);
     setFinished(false);
-    const plan = { tl, bpm: settings.bpm, end: planEnd(tl, settings.bpm, settings.sessionSec) };
+    const plan = { tl, bpm: settings.bpm, end: planEnd(tl, settings.bpm, settings.sessionSec), chordJudge };
     if (engine.start(plan)) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
   };
 
@@ -167,9 +170,11 @@ export default function App() {
         phase={phaseText(tl, running ? tick : null)}
         dots={dots}
         feedback={feedback}
+        chordJudge={chordJudge}
       />
 
-      <LiveChroma engine={engine} chord={chord ?? next} />
+      {/* リズムだけ採点している間はクロマを取っていないので、音名の表示は出さない */}
+      {(chordJudge || !running) && <LiveChroma engine={engine} chord={chord ?? next} />}
 
       <Controls
         settings={settings}
@@ -190,6 +195,7 @@ export default function App() {
         onUse={(s) => patch({ mode: 'score', bpm: s.bpm == null ? settings.bpm : clampBpm(s.bpm) })}
         active={mode === 'score'}
         running={running}
+        bpm={settings.bpm}
       />
 
       <SummaryPanel summary={summary} stopped={finished} />

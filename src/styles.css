@@ -75,6 +75,11 @@ button:disabled{opacity:.45;cursor:default}
 .ct.past{background:transparent;border-color:transparent;opacity:.38}
 .ct.due{border-color:var(--accent);border-width:2.5px;box-shadow:0 5px 14px rgba(14,133,133,.25)}
 .ct.due .nm{color:var(--accent);font-size:21px}
+/* 楽譜が決めているストローク。レーンの下端に置いて、カードとぶつけない */
+.chordlane .hit{position:absolute;bottom:2px;z-index:2;transform:translateX(-50%);
+  font-size:15px;font-weight:700;line-height:1;font-style:normal;color:var(--muted);opacity:.85}
+.chordlane .hit.h-D{color:var(--accent);font-size:18px}
+.chordlane .hit.h-x{font-size:12px}
 
 .fretmini .m-fr{stroke:#B7D0CB;stroke-width:1}
 .fretmini .m-nut{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
@@ -101,6 +106,8 @@ button:disabled{opacity:.45;cursor:default}
 .lane-dot{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--muted);transition:opacity .4s}
 .lane-dot.big{width:15px;height:15px;margin:-7.5px 0 0 -7.5px}
 .lane-dot.good{background:var(--good)} .lane-dot.warn{background:var(--sun)} .lane-dot.miss{background:var(--miss)}
+/* どの打点にも寄らなかったストローク。当たった点と区別して中抜きにする */
+.lane-dot.extra{background:none;border:2px solid var(--miss)}
 
 .feedback{margin-top:12px;min-height:3.3em;font-size:14px}
 .feedback .t{font-weight:700}

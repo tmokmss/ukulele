@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { COUNT_IN, type TrainerEngine } from '../audio/engine';
-import { placeRange, type Timeline } from '../core/timeline';
+import { hitsInRange, placeRange, type Timeline } from '../core/timeline';
 import { useFrame } from '../hooks/useEngine';
 import { FretMini } from './FretMini';
 
@@ -54,6 +54,8 @@ export function ChordLane({ engine, tl, anchor }: Props) {
   const last = cards[cards.length - 1];
   const from = cards.length ? cards[0].startBeat : 0;
   const to = cards.length ? last.startBeat + last.beats : 0;
+  // 楽譜がストロークを決めていれば、鳴らす位置を矢印で出す
+  const hits = useMemo(() => hitsInRange(tl, from, to), [tl, from, to]);
 
   useFrame(engine, ({ pos }) => {
     const strip = stripRef.current;
@@ -86,6 +88,12 @@ export function ChordLane({ engine, tl, anchor }: Props) {
             />
           );
         })}
+
+        {hits.map((h) => (
+          <i key={`h${h.beat}`} className={`hit h-${h.dir}`} style={{ left: h.beat * pxPerBeat }}>
+            {h.dir === 'D' ? '↓' : h.dir === 'U' ? '↑' : '×'}
+          </i>
+        ))}
 
         {cards.map((c) => (
           <div

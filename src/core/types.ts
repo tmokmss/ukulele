@@ -47,6 +47,28 @@ export type SegmentResult = {
   weak: number[];
 };
 
+/** ストロークの採点。楽譜がストロークを指定しているときだけ出る */
+export type RhythmTally = {
+  /** 鳴らすことになっていた回数 */
+  expected: number;
+  /** そのうち拾えた回数 */
+  played: number;
+  /** どの打点にも寄らなかった、余分なストローク */
+  extra: number;
+  /** 拾えた打点のズレ (ms) */
+  offsets: number[];
+  /** 拾えた打点の音の強さ 0..1。粒が揃っているかを見る */
+  levels: number[];
+};
+
+/** 1回ぶんの練習の結果 */
+export type SessionResult = {
+  results: SegmentResult[];
+  rhythm: RhythmTally | null;
+  /** コードまで採点したか。速い曲ではリズムだけになる */
+  chordJudged: boolean;
+};
+
 export type HistoryEntry = {
   ts: number;
   prog: string;
@@ -55,6 +77,9 @@ export type HistoryEntry = {
   bpm: number;
   bpc: number;
   n: number;
+  /** コード練習なら「コードが合った率」、リズムだけの曲なら「打てた率」 */
   okRate: number;
+  /** リズムだけを採点した回。okRate の意味が変わる */
+  rhythmOnly?: boolean;
   meanAbs: number | null;
 };
