@@ -95,7 +95,8 @@ export default function App() {
     setDots([]);
     setSummary(null);
     setFinished(false);
-    if (engine.start()) setFeedback({ timing: 'カウントのあと、1拍目でコードを鳴らしてください。', tone: null, chord: '' });
+    if (engine.start())
+      setFeedback({ timing: 'バーが満ちたら鳴らします。まずはカウントに合わせて構えてください。', tone: null, chord: '' });
   };
 
   const onAutoCalib = () => {
@@ -131,7 +132,6 @@ export default function App() {
         chord={chord}
         next={next}
         phase={phase}
-        beat={running && tick ? tick.beat : -1}
         bpc={settings.bpc}
         dots={dots}
         feedback={feedback}

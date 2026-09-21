@@ -11,7 +11,7 @@ import { TEMPL } from '../core/chords';
 import { computeChroma, scoreChords } from '../core/chroma';
 import type { SegmentResult, Settings, SourceKind } from '../core/types';
 
-const COUNT_IN = 4;
+export const COUNT_IN = 4;
 /** オンセット検出に使う帯域。クリック音 (2000/2600Hz) を避けてある */
 const ONSET_LO_HZ = 240;
 const ONSET_HI_HZ = 1300;
@@ -24,8 +24,6 @@ export type TickInfo = {
   phase: string;
   chord: string;
   next: string;
-  /** 小節内の拍 (0始まり)。カウントイン中は -1 */
-  beat: number;
 };
 
 export type FrameInfo = {
@@ -37,6 +35,11 @@ export type FrameInfo = {
   quiet: boolean;
   /** いちばん近いコード。判定できないときは null */
   heard: string | null;
+  /**
+   * 練習の現在位置 (拍単位・小数)。カウントイン中は負、止まっているときは null。
+   * 拍のバーを毎フレーム滑らかに動かすために渡す。
+   */
+  pos: number | null;
 };
 
 export type OnsetInfo = { ms: number; isChange: boolean };
@@ -439,15 +442,15 @@ export class TrainerEngine {
     const binHz = ctx.sampleRate / this.aBig.fftSize;
     const maxDb = computeChroma(this.bigDb, binHz, this.frameCh);
     for (let i = 0; i < 12; i++) this.live[i] += 0.35 * (this.frameCh[i] - this.live[i]);
-    this.emitFrame(maxDb);
-
     const run = this.run;
+    this.emitFrame(maxDb, run ? (now - run.t0) / run.beatDur : null);
     if (!run) return;
     const { bpc, prog } = this.settings;
     const tA = now - this.calibSec();
     const k = Math.floor((now - run.t0) / run.beatDur);
     if (k < 0) {
-      this.pushTick(prog[0], prog[1 % prog.length], `カウント ${-k}`, -1);
+      // 残り拍数は拍のバーの横に出るので、ここでは数えない
+      this.pushTick(prog[0], prog[1 % prog.length], 'カウントイン');
     } else {
       const s = Math.floor(k / bpc);
       const left = run.endSeg ? Math.max(0, run.endSeg * run.segDur - (now - run.t0)) : null;
@@ -455,7 +458,7 @@ export class TrainerEngine {
         left == null
           ? `${s + 1} コード目`
           : `残り ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
-      this.pushTick(prog[s % prog.length], prog[(s + 1) % prog.length], phase, k % bpc);
+      this.pushTick(prog[s % prog.length], prog[(s + 1) % prog.length], phase);
     }
 
     // 解析は補正後の時刻で区切る
@@ -478,14 +481,15 @@ export class TrainerEngine {
     if (run.endSeg != null && tA >= run.t0 + run.endSeg * run.segDur + 0.05) this.stop(false);
   };
 
-  private pushTick(chord: string, next: string, phase: string, beat: number): void {
-    const key = `${chord}|${next}|${phase}|${beat}`;
+  /** 拍の刻みは onFrame 側が持つ。ここはコードや残り時間が変わったときだけ流す */
+  private pushTick(chord: string, next: string, phase: string): void {
+    const key = `${chord}|${next}|${phase}`;
     if (key === this.lastTickKey) return;
     this.lastTickKey = key;
-    this.emit('tick', { chord, next, phase, beat });
+    this.emit('tick', { chord, next, phase });
   }
 
-  private emitFrame(maxDb: number): void {
+  private emitFrame(maxDb: number, pos: number | null): void {
     if (!this.frameListeners.size) return;
     let mx = 1e-9;
     for (let i = 0; i < 12; i++) if (this.live[i] > mx) mx = this.live[i];
@@ -495,7 +499,7 @@ export class TrainerEngine {
       const sc = scoreChords(this.live);
       if (sc && sc.bestScore > 0.62) heard = sc.best;
     }
-    const f: FrameInfo = { level: this.inputLevel(), live: this.live, liveMax: mx, quiet, heard };
+    const f: FrameInfo = { level: this.inputLevel(), live: this.live, liveMax: mx, quiet, heard, pos };
     for (const fn of this.frameListeners) fn(f);
   }
 

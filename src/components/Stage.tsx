@@ -1,6 +1,8 @@
-import type { TrainerEngine } from '../audio/engine';
+import { useRef } from 'react';
+import { COUNT_IN, type TrainerEngine } from '../audio/engine';
 import { timingClass } from '../core/chroma';
 import type { ResultText } from '../core/report';
+import { useFrame } from '../hooks/useEngine';
 import { FretDiagram } from './FretDiagram';
 
 /** タイミングのレーンに出す点。新しいものほど濃く、12個で消える */
@@ -15,14 +17,30 @@ type Props = {
   chord: string;
   next: string;
   phase: string;
-  /** 小節内の拍 (0始まり)。カウントイン中や停止中は -1 */
-  beat: number;
   bpc: number;
   dots: LaneDot[];
   feedback: StageFeedback | null;
 };
 
-export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback }: Props) {
+export function Stage({ engine, chord, next, phase, bpc, dots, feedback }: Props) {
+  const cells = useRef<(HTMLElement | null)[]>([]);
+  const cue = useRef<HTMLParagraphElement>(null);
+
+  // 拍のバーは毎フレーム動かす。点滅だと「光ってから弾く」ことになって必ず遅れるので、
+  // 満ちていく動きで次の一打を予測できるようにする。
+  useFrame(engine, ({ pos }) => {
+    // 満ちきった瞬間が鳴らす瞬間。カウントインも同じ見た目で、4拍かけて満ちる
+    const filled = pos == null ? 0 : pos < 0 ? ((COUNT_IN + pos) / COUNT_IN) * bpc : pos % bpc;
+    for (let i = 0; i < bpc; i++) {
+      const el = cells.current[i];
+      if (el) el.style.width = `${Math.max(0, Math.min(1, filled - i)) * 100}%`;
+    }
+    setText(
+      cue.current,
+      pos == null ? '' : pos < 0 ? `スタートまで ${Math.ceil(-pos)}` : `あと ${bpc - Math.floor(pos % bpc)} 拍`,
+    );
+  });
+
   return (
     <section className="stage" aria-label="いまのコード">
       <div className="stage-top">
@@ -36,11 +54,19 @@ export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback }:
         <FretDiagram engine={engine} chord={chord} />
       </div>
 
+      <p className="cue" ref={cue} aria-hidden="true" />
       <div className="beats" aria-hidden="true">
         {Array.from({ length: bpc }, (_, i) => (
-          <i key={i} className={i === beat ? (i === 0 ? 'on first' : 'on') : ''} />
+          <i key={i}>
+            <b
+              ref={(el) => {
+                cells.current[i] = el;
+              }}
+            />
+          </i>
         ))}
       </div>
+      <p className="rule">バーが右端まで満ちたら、そこで次のコードを1回鳴らします。</p>
 
       <div className="lane" aria-hidden="true">
         <span>早い</span>
@@ -81,4 +107,8 @@ export function Stage({ engine, chord, next, phase, beat, bpc, dots, feedback }:
       </div>
     </section>
   );
+}
+
+function setText(el: HTMLElement | null, text: string): void {
+  if (el && el.textContent !== text) el.textContent = text;
 }
