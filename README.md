@@ -1,11 +1,6 @@
-# ウクレレ コードチェンジ練習
+# ウクレレ練習
 
-クリックに合わせてコードを切り替えると、タイミングのズレと実際に鳴っている音を採点する。
-マイクの音を FFT にかけ、クロマグラムをコードのテンプレートと照合している。
-
-https://tmokmss.github.io/ukulele/
-
-## 使う
+## ローカルで起動
 
 ```sh
 npm install
@@ -21,10 +16,8 @@ npm run dev      # http://localhost:5173/
 
 開くとすぐマイクにつなぐ。マイクは HTTPS か localhost でしか使えない。
 
-コード進行の繰り返しのほかに、コード譜を JSON で貼ると曲を通して練習できる。
-ストロークを書けば、1打ごとのタイミングも採点する。書き方は [docs/score-format.md](docs/score-format.md)。
-楽譜は Claude に書かせる前提で、スキル (`.claude/skills/ukulele-score/`) と
-検算コマンド `npm run score -- song.json` を用意してある。
+コード進行の繰り返しのほか、コード譜を JSON で貼れば曲を通して練習できる。
+ストロークを書くと1打ごとに採点する。楽譜は `.claude/skills/ukulele-score/` のスキルに書かせる。
 
 `main` に push すると GitHub Pages へ自動デプロイされる。
 

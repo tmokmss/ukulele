@@ -1,6 +1,6 @@
 import type { TrainerEngine } from '../audio/engine';
 import { timingClass } from '../core/chroma';
-import type { ResultText } from '../core/report';
+import type { CardVerdict, ResultText } from '../core/report';
 import type { Timeline } from '../core/timeline';
 import { ChordLane } from './ChordLane';
 import { FretMini } from './FretMini';
@@ -18,6 +18,8 @@ type Props = {
   tl: Timeline;
   /** いま鳴っているコードの絶対番号。カウントイン中と停止中は -1 */
   anchor: number;
+  /** 採点の済んだコード。スロット番号で引く */
+  verdicts: Map<number, CardVerdict>;
   /** いま鳴っているコード。カウントイン中と停止中は null */
   chord: string | null;
   /** つぎにゲートへ来るコード。楽譜を弾き終えたあとは null */
@@ -29,12 +31,12 @@ type Props = {
   chordJudge: boolean;
 };
 
-export function Stage({ engine, tl, anchor, chord, next, phase, dots, feedback, chordJudge }: Props) {
+export function Stage({ engine, tl, anchor, verdicts, chord, next, phase, dots, feedback, chordJudge }: Props) {
   return (
     <section className="stage" aria-label="いまのコード">
       <p className="phase">{phase}</p>
 
-      <ChordLane engine={engine} tl={tl} anchor={anchor} />
+      <ChordLane engine={engine} tl={tl} anchor={anchor} verdicts={verdicts} />
 
       <div className="under">
         <div>

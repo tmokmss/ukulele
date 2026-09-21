@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { COUNT_IN, type TrainerEngine } from '../audio/engine';
+import type { CardVerdict } from '../core/report';
 import { hitsInRange, placeRange, type Timeline } from '../core/timeline';
 import { useFrame } from '../hooks/useEngine';
 import { FretMini } from './FretMini';
@@ -10,12 +11,16 @@ const GATE_RATIO = 0.28;
 const PAST = 1;
 const AHEAD = 4;
 const CARD_W = 64;
+/** 通過したカードを止めておく位置。採点が出るまで見えている必要がある */
+const PARK_X = 4;
 
 type Props = {
   engine: TrainerEngine;
   tl: Timeline;
   /** いま鳴っているコードの絶対番号。カウントイン中と停止中は -1 */
   anchor: number;
+  /** 採点の済んだコード。スロット番号で引く */
+  verdicts: Map<number, CardVerdict>;
 };
 
 /**
@@ -25,10 +30,11 @@ type Props = {
  * カードの入れ替えはコードが変わるときだけなので React に任せ、
  * 位置は transform を1回書き換えるだけにしている。
  */
-export function ChordLane({ engine, tl, anchor }: Props) {
+export function ChordLane({ engine, tl, anchor, verdicts }: Props) {
   const laneRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const countRef = useRef<HTMLDivElement>(null);
+  const cardEls = useRef(new Map<number, HTMLDivElement | null>());
   const [w, setW] = useState(0);
 
   useEffect(() => {
@@ -60,7 +66,19 @@ export function ChordLane({ engine, tl, anchor }: Props) {
   useFrame(engine, ({ pos }) => {
     const strip = stripRef.current;
     if (!strip) return;
-    strip.style.transform = `translateX(${(gateX - (pos ?? 0) * pxPerBeat).toFixed(1)}px)`;
+    const p = pos ?? 0;
+    strip.style.transform = `translateX(${(gateX - p * pxPerBeat).toFixed(1)}px)`;
+
+    // 鳴らし終えたカードは左端で止める。採点が出るのは通過の約1.5秒後なので、
+    // そのまま流すと結果が付く前に画面から出てしまう。
+    for (const c of cards) {
+      const el = cardEls.current.get(c.index);
+      if (!el) continue;
+      const x = gateX + (c.startBeat - p) * pxPerBeat - CARD_W / 2;
+      const d = c.index === anchor ? Math.max(0, PARK_X - x) : 0;
+      const tf = d > 0.5 ? `translateX(${d.toFixed(1)}px)` : '';
+      if (el.style.transform !== tf) el.style.transform = tf;
+    }
     // カウントイン中だけ、ゲートの上に残り拍を出す
     const count = countRef.current;
     if (count) {
@@ -95,16 +113,32 @@ export function ChordLane({ engine, tl, anchor }: Props) {
           </i>
         ))}
 
-        {cards.map((c) => (
-          <div
-            key={c.index}
-            className={`ct${c.index <= anchor ? ' past' : c.index === anchor + 1 ? ' due' : ''}`}
-            style={{ left: c.startBeat * pxPerBeat - CARD_W / 2, width: CARD_W }}
-          >
-            <FretMini chord={c.chord} w={42} />
-            <span className="nm">{c.chord}</span>
-          </div>
-        ))}
+        {cards.map((c) => {
+          // 採点はゲートを通過したカードに直接出す。結果が付いたカードは薄くしない
+          const v = verdicts.get(c.index);
+          const state =
+            c.index === anchor ? ' played' : c.index < anchor ? ' past' : c.index === anchor + 1 ? ' due' : '';
+          return (
+            <div
+              key={c.index}
+              ref={(el) => {
+                cardEls.current.set(c.index, el);
+                if (!el) cardEls.current.delete(c.index);
+              }}
+              className={`ct${state}${v ? ` judged j-${v.tone}` : ''}`}
+              style={{ left: c.startBeat * pxPerBeat - CARD_W / 2, width: CARD_W }}
+            >
+              <FretMini chord={c.chord} w={42} />
+              <span className="nm">{c.chord}</span>
+              {v && (
+                <span className="vd">
+                  {v.mark && `${v.mark} `}
+                  {v.label}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

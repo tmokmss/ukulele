@@ -10,7 +10,14 @@ import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './compone
 import { SummaryPanel } from './components/SummaryPanel';
 import { Tuning } from './components/Tuning';
 import { median } from './core/chroma';
-import { describeResult, phaseText, summarize, type SessionSummary } from './core/report';
+import {
+  cardVerdict,
+  describeResult,
+  phaseText,
+  summarize,
+  type CardVerdict,
+  type SessionSummary,
+} from './core/report';
 import { parseScore, scoreTimeline } from './core/score';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
 import { buildTimeline, canJudgeChords, placeSlot, planEnd, slotIndexAt } from './core/timeline';
@@ -24,6 +31,9 @@ const AUTO_CALIB_MIN_SAMPLES = 6;
 const BPM_MIN = 40;
 const BPM_MAX = 180;
 const clampBpm = (v: number): number => Math.min(BPM_MAX, Math.max(BPM_MIN, v));
+
+/** カードの採点を、何コードぶん遡って持っておくか */
+const VERDICT_KEEP = 4;
 
 let dotSeq = 0;
 
@@ -41,6 +51,8 @@ export default function App() {
   const [history, setHistory] = useState(loadHistory);
   const [lastOffsets, setLastOffsets] = useState<number[]>([]);
   const [autoCalibDone, setAutoCalibDone] = useState(false);
+  /** レーンのカードに出す採点。番号はタイムラインのスロット番号 */
+  const [verdicts, setVerdicts] = useState<Map<number, CardVerdict>>(() => new Map());
 
   // 楽譜は打つそばから読む。読めないあいだは進行の練習に落としておく
   const score = useMemo(() => {
@@ -83,7 +95,20 @@ export default function App() {
   useEffect(() => engine.on('running', setRunning), [engine]);
   useEffect(() => engine.on('tick', setTick), [engine]);
   useEffect(() => engine.on('calib', (ms) => patch({ calibMs: ms })), [engine, patch]);
-  useEffect(() => engine.on('result', (r) => setFeedback(describeResult(r, chordJudge))), [engine, chordJudge]);
+  useEffect(
+    () =>
+      engine.on('result', (r) => {
+        setFeedback(describeResult(r, chordJudge));
+        setVerdicts((m) => {
+          const next = new Map(m);
+          next.set(r.s, cardVerdict(r, chordJudge));
+          // 画面から流れ去ったぶんは捨てる
+          for (const k of next.keys()) if (k < r.s - VERDICT_KEEP) next.delete(k);
+          return next;
+        });
+      }),
+    [engine, chordJudge],
+  );
 
   useEffect(
     () =>
@@ -128,6 +153,7 @@ export default function App() {
       return;
     }
     setDots([]);
+    setVerdicts(new Map());
     setSummary(null);
     setFinished(false);
     const plan = { tl, bpm: settings.bpm, end: planEnd(tl, settings.bpm, settings.sessionSec), chordJudge };
@@ -165,6 +191,7 @@ export default function App() {
         engine={engine}
         tl={tl}
         anchor={anchor}
+        verdicts={verdicts}
         chord={chord}
         next={next}
         phase={phaseText(tl, running ? tick : null)}

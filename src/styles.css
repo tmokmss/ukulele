@@ -72,7 +72,9 @@ button:disabled{opacity:.45;cursor:default}
   /* ゲートを通過した瞬間に消えると鳴らしにくいので、少し尾を引かせる */
   transition:opacity .25s,border-color .25s,box-shadow .25s}
 .ct .nm{font-weight:900;font-size:18px;letter-spacing:-.02em;line-height:1.05}
-.ct.past{background:transparent;border-color:transparent;opacity:.38}
+.ct.past{background:transparent;border-color:transparent;opacity:.28}
+/* 鳴らし終えたカード。採点が出るまで左端で止まる */
+.ct.played{opacity:.9}
 .ct.due{border-color:var(--accent);border-width:2.5px;box-shadow:0 5px 14px rgba(14,133,133,.25)}
 .ct.due .nm{color:var(--accent);font-size:21px}
 /* 楽譜が決めているストローク。レーンの下端に置いて、カードとぶつけない */
@@ -80,6 +82,12 @@ button:disabled{opacity:.45;cursor:default}
   font-size:15px;font-weight:700;line-height:1;font-style:normal;color:var(--muted);opacity:.85}
 .chordlane .hit.h-D{color:var(--accent);font-size:18px}
 .chordlane .hit.h-x{font-size:12px}
+/* 採点はゲートを通過したカードに出す。結果が付いたものは薄くしない */
+.ct.judged{background:var(--surface);opacity:.92}
+.ct .vd{font-size:9.5px;font-weight:800;line-height:1.2;white-space:nowrap;letter-spacing:-.02em}
+.ct.j-good{border-color:var(--good)} .ct.j-good .vd{color:var(--good)}
+.ct.j-warn{border-color:var(--sun)}  .ct.j-warn .vd{color:var(--sun)}
+.ct.j-miss{border-color:var(--miss)} .ct.j-miss .vd{color:var(--miss)}
 
 .fretmini .m-fr{stroke:#B7D0CB;stroke-width:1}
 .fretmini .m-nut{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}

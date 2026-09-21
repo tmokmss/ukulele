@@ -540,7 +540,8 @@ export class TrainerEngine {
       const local = (beatA - slot.startBeat) * run.beatDur;
       // 前のコードの残響と FFT 窓 (約340ms) を避けてから集計を始める
       const guard = segDur >= 1.0 ? 0.32 : 0.18;
-      const listenEnd = Math.min(segDur - 0.03, guard + LISTEN_SEC);
+      // 短いコードでは 1秒も待つと区間の終わりに重なるので、区間の長さに合わせて縮める
+      const listenEnd = Math.min(segDur - 0.03, guard + Math.min(LISTEN_SEC, segDur * 0.55));
       if (maxDb > -76 && local >= guard && local <= listenEnd) {
         let a = run.acc.get(sA);
         if (!a) {
