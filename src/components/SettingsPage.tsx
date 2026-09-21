@@ -19,14 +19,17 @@ type Props = {
 export function SettingsPage({ engine, source, onRetryMic, settings, patch, canAutoCalib, onAutoCalib, onBack }: Props) {
   return (
     <>
-      <header className="head">
-        <div>
+      <header>
+        <div className="head">
           <h1>設定</h1>
-          <p className="lede">楽器を合わせて、採点の効き方を整えます。</p>
+          <button type="button" className="btn-quiet" onClick={onBack}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+            練習にもどる
+          </button>
         </div>
-        <button type="button" className="btn-sub" onClick={onBack}>
-          ← 戻る
-        </button>
+        <p className="lede">楽器を合わせて、採点の効き方を整えます。</p>
       </header>
 
       <MicStatus

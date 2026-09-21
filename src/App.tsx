@@ -38,6 +38,15 @@ const VERDICT_KEEP = 4;
 
 let dotSeq = 0;
 
+/** 設定ボタンの印。つまみの絵にしてある (中身はチューニングと調整) */
+function SlidersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+    </svg>
+  );
+}
+
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const engine = useEngine(settings);
@@ -189,15 +198,16 @@ export default function App() {
 
   return (
     <main>
-      <header className="head">
-        <div>
+      <header>
+        <div className="head">
           <h1>コードチェンジ練習</h1>
-          <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
+          {/* 練習中に移ると、見えないところでメトロノームだけが鳴り続ける */}
+          <button type="button" className="btn-quiet" disabled={running} onClick={() => go('settings')}>
+            <SlidersIcon />
+            設定
+          </button>
         </div>
-        {/* 練習中に移ると、見えないところでメトロノームだけが鳴り続ける */}
-        <button type="button" className="btn-sub" disabled={running} onClick={() => go('settings')}>
-          設定
-        </button>
+        <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
       </header>
 
       <MicStatus

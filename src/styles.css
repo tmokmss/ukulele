@@ -36,9 +36,12 @@ button:disabled{opacity:.45;cursor:default}
 
 .block{margin-top:26px;padding-top:18px;border-top:1.5px solid var(--line)}
 
-/* 見出しの右に、画面を移るボタンを置く */
-.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.head .btn-sub{flex:none;margin-top:2px}
+/* 見出しの行に、画面を移るボタンを載せる。枠は付けない (本文の上に浮いて見える) */
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.btn-quiet{display:inline-flex;align-items:center;gap:5px;flex:none;
+  border:0;background:none;padding:6px 0 6px 10px;color:var(--muted);font-size:13px;font-weight:700}
+.btn-quiet svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.btn-quiet:hover{color:var(--ink)}
 
 /* input source */
 .source{margin-top:16px}
