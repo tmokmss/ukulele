@@ -3,7 +3,8 @@
  * 読めたときは「拍の上に並んだコード」に、読めないときは直せる文言になることを見る。
  */
 import { describe, expect, it } from 'vitest';
-import { parseScore, SAMPLE_SCORE, scoreTimeline } from '../src/core/score';
+import { parseScore, scoreTimeline } from '../src/core/score';
+import { SONG_ERRORS, SONGS } from '../src/core/songs';
 
 /** 読めた前提で中身を取り出す */
 function ok(text: string) {
@@ -137,11 +138,25 @@ describe('タイムラインに乗せる', () => {
     expect(tl.barBeats).toBe(4);
   });
 
-  it('サンプルはそのまま練習できる', () => {
-    const score = ok(SAMPLE_SCORE);
-    expect(score.title).toBe('きらきら星');
-    expect(score.bars).toBe(12);
-    expect(scoreTimeline(score).cycleBeats).toBe(48);
+});
+
+/**
+ * 楽譜はリポジトリで管理する。壊れたものが混ざるとアプリの一覧から消えるので、
+ * ここで全部通しておく (画面に貼って気づくのでは遅い)
+ */
+describe('songs/ に入っている楽譜', () => {
+  it('全部読める', () => {
+    // 落ちたらエラー文がそのまま出る
+    expect(SONG_ERRORS.map((e) => `songs/${e.id}.json: ${e.error}`)).toEqual([]);
+    expect(SONGS.length).toBeGreaterThan(0);
+  });
+
+  it('曲名と小節と打点がそろっている', () => {
+    for (const { id, score } of SONGS) {
+      expect(`${id}: ${score.title}`).not.toContain('名前のない楽譜');
+      expect(score.bars).toBeGreaterThan(0);
+      expect(scoreTimeline(score).cycleBeats).toBeGreaterThan(0);
+    }
   });
 });
 

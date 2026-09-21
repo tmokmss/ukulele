@@ -12,6 +12,8 @@
     "score": "vite-node scripts/check-score.ts"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.23",
+    "cmdk": "^1.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

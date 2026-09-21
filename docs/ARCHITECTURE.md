@@ -60,6 +60,13 @@ CSS は PoC からそのまま `src/styles.css` へ。ID セレクタ (`#fret`, 
 CSS Modules や Tailwind は入れていない。今の規模では1ファイルで足りるし、
 入れるならコンポーネントが増えて実際に困ってからでいい。
 
+例外は曲を選ぶコンボボックス (`src/components/Combobox.tsx`) で、
+**shadcn/ui の Combobox と同じ組み合わせ (Radix Popover + cmdk) を直接使っている**。
+絞り込み・キーボード操作・フォーカスの扱いを自前で書くと確実に粗が出るため。
+ただし shadcn そのもの (Tailwind + CLI 生成) は入れなかった。
+1つの部品のために Tailwind を足すと、この1枚の CSS と二重になって、
+以降ずっと「どちらで書くか」を迷うことになる。見た目はここのトークンで書いてある。
+
 ## 練習するものは Timeline に集める
 
 「進行を bpc 拍ずつ延々と繰り返す」のも「楽譜を2周して終わる」のも、
@@ -94,6 +101,12 @@ scoreTimeline(parseScore)  ┘              └→ ChordLane / Stage
 不応期110msがオンセット検出の下限なので、16分を拾えるのは約135BPMまで。
 
 楽譜の JSON を読むのは `src/core/score.ts` だけ。書式は [score-format.md](score-format.md)。
+
+楽譜そのものは**リポジトリの `songs/*.json` で管理する**。画面で打ち込むのではなく、
+Claude に書かせてコミットし、アプリはタイトルで選ぶだけにした。読み込みは
+`src/core/songs.ts` の `import.meta.glob` で、ビルドに同梱される
+(取りに行く通信も、GitHub Pages のパスの心配も要らない)。
+読めない楽譜は一覧から落ちるので、`npm test` と `npm run score` の両方で全部を通している。
 
 ## これからUIを足すとき
 

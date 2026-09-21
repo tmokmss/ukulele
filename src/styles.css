@@ -166,21 +166,32 @@ select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px soli
 .spark polyline{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .spark circle{fill:var(--accent)}
 
-/* score */
-.scorebox{
-  display:block;width:100%;margin-top:4px;padding:10px 12px;
-  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  font-size:12.5px;line-height:1.6;color:var(--ink);background:var(--surface);
-  border:1.5px solid var(--line);border-radius:14px;resize:vertical;
-}
-.scorebox::placeholder{color:var(--muted);opacity:.7}
-.score .use{border-color:var(--accent);color:var(--accent);font-weight:700}
-.score .msg{white-space:pre-line}
-.fmt{margin-top:12px;font-size:12.5px;color:var(--muted)}
-.fmt summary{cursor:pointer;font-weight:700}
-.fmt ul{margin:8px 0 0;padding-left:1.2em}
-.fmt li{margin-top:3px}
-.fmt code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+/* songs: リポジトリの楽譜をタイトルで選ぶ */
+.songs .msg{white-space:pre-line}
+
+/* 絞り込みつきの択一 (Radix Popover + cmdk)。見た目はこのファイルのトークンで作る */
+.combo-trigger{display:flex;align-items:center;gap:10px;width:100%;margin-top:4px;
+  padding:11px 14px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);
+  font-size:15px;font-weight:700;text-align:left}
+.combo-trigger .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combo-trigger .v.ph{color:var(--muted);font-weight:500}
+.combo-trigger .caret{color:var(--muted);font-size:12px;flex:none}
+.combo-trigger[aria-expanded="true"]{border-color:var(--accent)}
+
+.combo-pop{width:var(--radix-popover-trigger-width);max-height:min(340px,var(--radix-popover-content-available-height));
+  background:var(--surface);border:1.5px solid var(--line);border-radius:16px;overflow:hidden;
+  box-shadow:0 12px 30px rgba(0,0,0,.18);z-index:20}
+.combo-input{width:100%;border:0;border-bottom:1.5px solid var(--line);background:none;color:var(--ink);
+  font:inherit;font-size:14px;padding:11px 14px;outline:none}
+.combo-input::placeholder{color:var(--muted)}
+.combo-list{max-height:280px;overflow-y:auto;padding:6px;overscroll-behavior:contain}
+.combo-item{display:block;padding:9px 10px;border-radius:11px;cursor:pointer}
+.combo-item .t{display:block;font-weight:700;font-size:14.5px}
+.combo-item .t b{color:var(--accent)}
+.combo-item .m{display:block;font-size:11.5px;color:var(--muted);margin-top:1px;line-height:1.45}
+.combo-item[data-selected="true"]{background:var(--bg)}
+.combo-empty{padding:14px;font-size:13px;color:var(--muted);text-align:center}
+.songs code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
   background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:0 4px}
 
 @media (prefers-reduced-motion: reduce){ *{transition:none !important} }

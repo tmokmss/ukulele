@@ -5,7 +5,7 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { LiveChroma } from './components/LiveChroma';
 import { Progression } from './components/Progression';
 import { MicStatus } from './components/MicStatus';
-import { ScorePanel } from './components/ScorePanel';
+import { SongPanel } from './components/SongPanel';
 import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './components/Stage';
 import { SummaryPanel } from './components/SummaryPanel';
 import { Tuning } from './components/Tuning';
@@ -18,7 +18,8 @@ import {
   type CardVerdict,
   type SessionSummary,
 } from './core/report';
-import { parseScore, scoreTimeline } from './core/score';
+import { scoreTimeline } from './core/score';
+import { findSong } from './core/songs';
 import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } from './core/storage';
 import { buildTimeline, canJudgeChords, placeSlot, planEnd, slotIndexAt } from './core/timeline';
 import type { PracticeMode, Settings, TickInfo } from './core/types';
@@ -54,11 +55,8 @@ export default function App() {
   /** レーンのカードに出す採点。番号はタイムラインのスロット番号 */
   const [verdicts, setVerdicts] = useState<Map<number, CardVerdict>>(() => new Map());
 
-  // 楽譜は打つそばから読む。読めないあいだは進行の練習に落としておく
-  const score = useMemo(() => {
-    const r = settings.scoreText.trim() ? parseScore(settings.scoreText) : null;
-    return r?.ok ? r.score : null;
-  }, [settings.scoreText]);
+  // 楽譜は songs/*.json で管理する。選ばれていなければ進行の練習に落としておく
+  const score = useMemo(() => findSong(settings.songId)?.score ?? null, [settings.songId]);
   const mode: PracticeMode = settings.mode === 'score' && score ? 'score' : 'drill';
 
   // 画面はタイムライン上の「いまどのコードか」だけを見る。
@@ -216,13 +214,18 @@ export default function App() {
         <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
       )}
 
-      <ScorePanel
-        text={settings.scoreText}
-        onChange={(scoreText) => patch({ scoreText })}
-        onUse={(s) => patch({ mode: 'score', bpm: s.bpm == null ? settings.bpm : clampBpm(s.bpm) })}
+      <SongPanel
+        songId={settings.songId}
         active={mode === 'score'}
         running={running}
         bpm={settings.bpm}
+        onPick={(song) =>
+          patch({
+            songId: song.id,
+            mode: 'score',
+            bpm: song.score.bpm == null ? settings.bpm : clampBpm(song.score.bpm),
+          })
+        }
       />
 
       <SummaryPanel summary={summary} stopped={finished} />

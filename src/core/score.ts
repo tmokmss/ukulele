@@ -248,21 +248,3 @@ function intField(value: unknown, fallback: number, lo: number, hi: number): num
   if (typeof value !== 'number' || !Number.isInteger(value) || value < lo || value > hi) return null;
   return value;
 }
-
-export const SAMPLE_SCORE = `{
-  "title": "きらきら星",
-  "bpm": 90,
-  "beatsPerBar": 4,
-  "strum": "D-DU-UDU",
-  "sections": [
-    {
-      "name": "A",
-      "repeat": 2,
-      "bars": ["C", "F C", "C", "G7 C"]
-    },
-    {
-      "name": "B",
-      "bars": ["F C", "F C", "F C", "G7 C"]
-    }
-  ]
-}`;

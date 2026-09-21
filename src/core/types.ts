@@ -16,8 +16,8 @@ export type Settings = {
   sens: number;
   prog: string[];
   mode: PracticeMode;
-  /** 楽譜の JSON。書きかけでもそのまま持っておく */
-  scoreText: string;
+  /** 選んでいる楽譜。songs/<id>.json のファイル名 */
+  songId: string;
 };
 
 /** 練習のいまの位置。文言は report.ts が組み立てる */

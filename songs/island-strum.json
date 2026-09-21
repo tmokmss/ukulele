@@ -1,0 +1,8 @@
+{
+  "title": "アイランドストロークの練習",
+  "bpm": 80,
+  "beatsPerBar": 4,
+  "repeat": 4,
+  "strum": "D-DU-UDU",
+  "bars": ["C", "Am", "F", "G7"]
+}

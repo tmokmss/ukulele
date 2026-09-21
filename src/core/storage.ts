@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sens: 6,
   prog: ['C', 'Am', 'F', 'G7'],
   mode: 'drill',
-  scoreText: '',
+  songId: '',
 };
 
 export function loadSettings(): Settings {
@@ -39,7 +39,7 @@ export function loadSettings(): Settings {
   const prog = (Array.isArray(s.prog) ? s.prog : []).filter((c) => CHORDS[c]);
   s.prog = prog.length ? prog : [...DEFAULT_SETTINGS.prog];
   if (s.mode !== 'score') s.mode = 'drill';
-  if (typeof s.scoreText !== 'string') s.scoreText = '';
+  if (typeof s.songId !== 'string') s.songId = '';
   return s;
 }
 
