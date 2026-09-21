@@ -42,9 +42,6 @@ button:disabled{opacity:.45;cursor:default}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;gap:2px;background:var(--surface)}
 .seg button{border:0;background:none;padding:7px 14px;border-radius:999px;color:var(--muted);font-weight:500;font-size:14px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
-.meter{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);flex:1;min-width:140px}
-.meter .bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
-.meter .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:3px}
 
 /* stage */
 .stage{

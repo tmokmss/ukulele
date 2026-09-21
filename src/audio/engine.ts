@@ -26,7 +26,8 @@ export const COUNT_IN = 4;
 const ONSET_LO_HZ = 240;
 const ONSET_HI_HZ = 1300;
 
-const MIC_OK = 'マイクにつながりました。ウクレレを鳴らすと下のグラフが動きます。';
+/** つながったあとに残す文言はない。動き出していないときだけ、やることを伝える */
+const MIC_SUSPENDED = 'マイクにつながりました。画面を一度タップすると動き始めます。';
 
 /**
  * 1コードぶんの音を聞く長さ (秒)。
@@ -55,8 +56,6 @@ export type Plan = {
 };
 
 export type FrameInfo = {
-  /** 入力レベル 0..1 */
-  level: number;
   /** 平滑化したクロマ (長さ12)。毎フレーム上書きされるので保持しないこと */
   live: Float32Array;
   liveMax: number;
@@ -221,7 +220,7 @@ export class TrainerEngine {
       void ctx.resume().then(() => {
         if (ctx.state !== 'running') return;
         this.detachResume?.();
-        if (this.source === 'mic') this.emitSource(MIC_OK, false);
+        if (this.source === 'mic') this.emitSource(null, false);
       });
     };
     window.addEventListener('pointerdown', onGesture);
@@ -291,7 +290,7 @@ export class TrainerEngine {
         const est = ((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + inLat + 0.03) * 1000;
         this.emit('calib', Math.min(300, Math.max(0, Math.round(est / 5) * 5)));
       }
-      this.emitSource(ctx.state === 'running' ? MIC_OK : `${MIC_OK} 画面を一度タップすると動き始めます。`, false);
+      this.emitSource(ctx.state === 'running' ? null : MIC_SUSPENDED, false);
     } catch (err) {
       if (gen !== this.generation) return;
       this.dropMic();
@@ -392,6 +391,7 @@ export class TrainerEngine {
     this.emit('onset', { ms: m.off * 1000, isChange: isSlotStart(tl, m.at) });
   }
 
+  /** ストロークの強さ。いまは打点ごとの粒の揃いを見るのに使う */
   private inputLevel(): number {
     this.aSmall.getFloatTimeDomainData(this.tdBuf);
     let s = 0;
@@ -577,7 +577,7 @@ export class TrainerEngine {
       const sc = scoreChords(this.live);
       if (sc && sc.bestScore > 0.62) heard = sc.best;
     }
-    const f: FrameInfo = { level: this.inputLevel(), live: this.live, liveMax: mx, quiet, heard, pos };
+    const f: FrameInfo = { live: this.live, liveMax: mx, quiet, heard, pos };
     for (const fn of this.frameListeners) fn(f);
   }
 

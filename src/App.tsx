@@ -177,7 +177,6 @@ export default function App() {
       </header>
 
       <MicStatus
-        engine={engine}
         source={source.source}
         message={source.message}
         warn={source.warn}
