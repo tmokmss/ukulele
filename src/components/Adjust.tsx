@@ -11,7 +11,7 @@ type Props = {
 /** 補正値が未設定のときにスライダーが指す位置 */
 export const CALIB_FALLBACK = 60;
 
-export function Tuning({ settings, patch, canAutoCalib, onAutoCalib }: Props) {
+export function Adjust({ settings, patch, canAutoCalib, onAutoCalib }: Props) {
   const calib = settings.calibMs ?? CALIB_FALLBACK;
   return (
     <section className="block" aria-label="調整">
