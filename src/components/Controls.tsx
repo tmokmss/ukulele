@@ -5,23 +5,18 @@ type Props = {
   settings: Settings;
   patch: (p: Partial<Settings>) => void;
   running: boolean;
-  onToggle: () => void;
   /** 実際に使われているモード。楽譜が読めていないときは drill に落ちている */
   mode: PracticeMode;
   /** 楽譜が読めているか。読めていなければ楽譜モードに切り替えられない */
   scoreReady: boolean;
 };
 
-export function Controls({ settings, patch, running, onToggle, mode, scoreReady }: Props) {
+export function Controls({ settings, patch, running, mode, scoreReady }: Props) {
   const score = mode === 'score';
 
   return (
     <section className="controls" aria-label="練習の設定">
-      <button type="button" className={running ? 'btn-main stop' : 'btn-main'} onClick={onToggle}>
-        {running ? '止める' : '練習を始める'}
-      </button>
-
-      <div className="row">
+      <div className="row first">
         <span className="lbl">練習するもの</span>
         <Segmented
           label="練習するもの"
