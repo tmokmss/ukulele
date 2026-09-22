@@ -3,7 +3,7 @@
  * 飛ばしたところを数えず、弾き直したところを二重に数えないのがここの仕事。
  */
 import { describe, expect, it } from 'vitest';
-import { addSpan, cutSpans, inSpans, type Span } from '../src/core/ranges';
+import { addSpan, cutSpans, inSpans, type Span } from './ranges';
 
 describe('addSpan', () => {
   it('離れた区間はそのまま並ぶ', () => {

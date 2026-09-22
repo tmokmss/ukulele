@@ -3,9 +3,9 @@
  * 針が数セント動く表示なので、ビン幅 (約3Hz = C4 で約19セント) より細かい精度が要る。
  */
 import { describe, expect, it } from 'vitest';
-import { OPEN, STRING_NAME } from '../src/core/chords';
-import { detectPitch, nearestString, noteName } from '../src/core/pitch';
-import { spectrumDb } from './fft';
+import { OPEN, STRING_NAME } from './chords';
+import { detectPitch, nearestString, noteName } from './pitch';
+import { spectrumDb } from '../testing/fft';
 
 const SAMPLE_RATE = 48000;
 const FFT_SIZE = 16384;

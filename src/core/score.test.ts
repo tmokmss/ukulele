@@ -3,8 +3,8 @@
  * 読めたときは「拍の上に並んだコード」に、読めないときは直せる文言になることを見る。
  */
 import { describe, expect, it } from 'vitest';
-import { parseScore, scoreTimeline } from '../src/core/score';
-import { SONG_ERRORS, SONGS } from '../src/core/songs';
+import { parseScore, scoreTimeline } from './score';
+import { SONG_ERRORS, SONGS } from './songs';
 
 /** 読めた前提で中身を取り出す */
 function ok(text: string) {
