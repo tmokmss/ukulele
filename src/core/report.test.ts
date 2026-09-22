@@ -3,8 +3,8 @@
  * コードが合っていたかの印 (✓/✗/?) の2つだけを持つ。詳しい文章とは別物。
  */
 import { describe, expect, it } from 'vitest';
-import { cardVerdict } from '../src/core/report';
-import type { SegmentResult } from '../src/core/types';
+import { cardVerdict } from './report';
+import type { SegmentResult } from './types';
 
 function result(over: Partial<SegmentResult> = {}): SegmentResult {
   return { s: 0, chord: 'C', off: 0, heard: true, ok: true, best: 'C', weak: [], ...over };

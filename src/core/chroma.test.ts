@@ -3,9 +3,9 @@
  * docs/notes.md にある「Blackman窓のFFTをNodeで再現して検証した」を、リポジトリに残る形にしたもの。
  */
 import { describe, expect, it } from 'vitest';
-import { CHORDS, LIB, OPEN, TEMPL } from '../src/core/chords';
-import { computeChroma, scoreChords } from '../src/core/chroma';
-import { spectrumDb } from './fft';
+import { CHORDS, LIB, OPEN, TEMPL } from './chords';
+import { computeChroma, scoreChords } from './chroma';
+import { spectrumDb } from '../testing/fft';
 
 const SAMPLE_RATE = 48000;
 const FFT_SIZE = 16384;

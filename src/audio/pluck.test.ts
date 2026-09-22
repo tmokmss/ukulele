@@ -6,11 +6,11 @@
  * 「アプリに聞こえる音」がずれていない。
  */
 import { describe, expect, it } from 'vitest';
-import { freqOf, pluckSamples } from '../src/audio/pluck';
-import { chordMidi, LIB } from '../src/core/chords';
-import { computeChroma, scoreChords } from '../src/core/chroma';
-import { detectPitch } from '../src/core/pitch';
-import { spectrumDb } from './fft';
+import { freqOf, pluckSamples } from './pluck';
+import { chordMidi, LIB } from '../core/chords';
+import { computeChroma, scoreChords } from '../core/chroma';
+import { detectPitch } from '../core/pitch';
+import { spectrumDb } from '../testing/fft';
 
 const SR = 48000;
 const N = 16384;

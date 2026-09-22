@@ -14,6 +14,9 @@
 
 ビルドは Vite、型は TypeScript、テストは Vitest。すべて Vite の設定を共有するので、設定ファイルは増えない。
 
+テストは実装の隣に置く。`src/core/score.ts` なら `src/core/score.test.ts`。
+本番から使わないテスト専用のヘルパーだけ `src/testing/` にまとめる。
+
 ## いちばん効いた判断: オーディオを React の外に出す
 
 PoC は `requestAnimationFrame` のループが解析も DOM 更新も全部やっていた。
@@ -54,7 +57,7 @@ TrainerEngine (src/audio/engine.ts)  ← React を import していない
 
 DSP の定数 (`fftSize` 16384、オンセットの帯域 240〜1300Hz、しきい値 `fluxAvg * 2.2 + gate`、
 不応期 110ms、集計開始 0.32秒、倍音の重み 640Hz〜、弱い音 16%) は**すべて PoC のまま**にしてある。
-移行で挙動が変わっていないことを見るため、`test/chroma.test.ts` で16コード全部を通している。
+移行で挙動が変わっていないことを見るため、`src/core/chroma.test.ts` で16コード全部を通している。
 
 CSS は PoC からそのまま `src/styles.css` へ。ID セレクタ (`#fret`, `#spark`) だけクラスに変えた。
 CSS Modules や Tailwind は入れていない。今の規模では1ファイルで足りるし、

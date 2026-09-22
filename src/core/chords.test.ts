@@ -3,7 +3,7 @@
  * 開放弦 (G4 C4 E4 A4) を基準に、代表的なコードの実音を固定しておく。
  */
 import { describe, expect, it } from 'vitest';
-import { chordMidi, CHORDS, LIB, OPEN } from '../src/core/chords';
+import { chordMidi, CHORDS, LIB, OPEN } from './chords';
 
 /** MIDI ノート番号を C4=60 基準の音名にする。読んで確かめられるように */
 const NAME = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];

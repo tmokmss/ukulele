@@ -18,7 +18,7 @@ import {
   planEnd,
   slotIndexAt,
   type Hit,
-} from '../src/core/timeline';
+} from './timeline';
 
 const PROG = ['C', 'Am', 'F', 'G7'];
 
