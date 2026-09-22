@@ -10,6 +10,8 @@ export type Settings = {
   /** 練習時間 (秒)。0 は「止めるまで」 */
   sessionSec: number;
   clickOn: boolean;
+  /** お手本を鳴らすか。鳴らすとマイクが拾うので、イヤホンが要る */
+  demoOn: boolean;
   /** 入出力の遅延補正 (ms)。null はマイク接続時に自動推定する */
   calibMs: number | null;
   /** オンセット検出の感度 1..10 */

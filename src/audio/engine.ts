@@ -7,22 +7,28 @@
  * UI へは「拍やコードが変わった」「1コードぶんの採点が出た」といった粒度のイベントで伝え、
  * 毎フレームの値 (レベルメーター、クロマ、押さえ方の光り方) だけ onFrame で直接渡す。
  */
-import { TEMPL } from '../core/chords';
+import { chordMidi, TEMPL } from '../core/chords';
 import { computeChroma, scoreChords } from '../core/chroma';
 import { detectPitch, type Pitch } from '../core/pitch';
 import {
   firstHitBeat,
   hitsBefore,
+  hitsInRange,
   isSlotStart,
   matchStroke,
   placeSlot,
   slotIndexAt,
   type PlanEnd,
+  type Stroke,
   type Timeline,
 } from '../core/timeline';
+import { Pluck } from './pluck';
 import type { RhythmTally, SegmentResult, SessionResult, Settings, SourceKind, TickInfo } from '../core/types';
 
 export const COUNT_IN = 4;
+
+/** お手本の音量。クリックより控えめにして、マイクへの回り込みを減らす */
+const DEMO_VOLUME = 0.22;
 /** オンセット検出に使う帯域。クリック音 (2000/2600Hz) を避けてある */
 const ONSET_LO_HZ = 240;
 const ONSET_HI_HZ = 1300;
@@ -113,6 +119,8 @@ export class TrainerEngine {
   private frameListeners = new Set<(f: FrameInfo) => void>();
 
   private ctx: AudioContext | null = null;
+  /** お手本を鳴らす音源。AudioContext ができてから作る */
+  private pluck: Pluck | null = null;
   private inputBus!: GainNode;
   private aBig!: AnalyserNode;
   private aSmall!: AnalyserNode;
@@ -193,6 +201,8 @@ export class TrainerEngine {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AC({ latencyHint: 'interactive' });
     this.ctx = ctx;
+    // お手本はクリックより控えめに鳴らす。マイクへの回り込みを少しでも減らすため
+    this.pluck = new Pluck(ctx, DEMO_VOLUME);
     this.inputBus = ctx.createGain();
     // 大きい FFT はコード判定用。C4 (約262Hz) と隣の半音の差 15Hz を分けるために 16384 必要
     this.aBig = ctx.createAnalyser();
@@ -339,6 +349,37 @@ export class TrainerEngine {
     o.stop(t + 0.07);
   }
 
+  /**
+   * お手本を k 拍目のぶんだけ鳴らす。
+   *
+   * ストロークが決まっている楽譜はその位置と向きで弾き、決まっていなければ
+   * (進行の繰り返しや、strum のない楽譜) コードの切れ目でダウンを1回だけ弾く。
+   */
+  private demo(k: number): void {
+    const run = this.run;
+    const pluck = this.pluck;
+    if (!run || !pluck) return;
+    const tl = run.plan.tl;
+    const endBeat = run.plan.end?.beat ?? null;
+
+    const at = (beat: number, dir: Stroke): void => {
+      const p = placeSlot(tl, slotIndexAt(tl, beat));
+      if (!p) return;
+      pluck.strum(run.t0 + beat * run.beatDur, chordMidi(p.chord), dir);
+    };
+
+    if (!tl.hits.length) {
+      if (isSlotStart(tl, k)) at(k, 'D');
+      return;
+    }
+    for (const h of hitsInRange(tl, k, k + 1)) {
+      // hitsInRange は両端を含むので、次の拍の頭をここで二度鳴らさないように落とす
+      if (h.beat >= k + 1 - 1e-9) continue;
+      if (endBeat != null && h.beat >= endBeat) continue;
+      at(h.beat, h.dir);
+    }
+  }
+
   private scheduler = (): void => {
     const run = this.run;
     const ctx = this.ctx;
@@ -351,6 +392,8 @@ export class TrainerEngine {
       const t = run.t0 + k * run.beatDur;
       if (endBeat == null || k < endBeat) {
         if (this.settings.clickOn) this.click(t, k >= 0 ? k % barBeats === 0 : k === -COUNT_IN);
+        // カウントイン中は鳴らさない。お手本より先に自分で数えてもらう
+        if (this.settings.demoOn && k >= 0) this.demo(k);
       }
       run.nextK++;
     }
@@ -613,6 +656,8 @@ export class TrainerEngine {
     cancelAnimationFrame(this.rafId);
     this.detachResume?.();
     this.dropMic();
+    this.pluck?.dispose();
+    this.pluck = null;
     void this.ctx?.close();
     this.ctx = null;
   }
