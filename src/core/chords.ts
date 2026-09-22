@@ -32,6 +32,12 @@ export const CHORDS: Record<string, [number, number, number, number]> = {
 
 export const LIB: string[] = Object.keys(CHORDS);
 
+/** そのコードを押さえたときに各弦が出す実音 (MIDI ノート番号)。4弦 → 1弦。知らないコードは空 */
+export function chordMidi(chord: string): number[] {
+  const frets = CHORDS[chord];
+  return frets ? frets.map((f, i) => OPEN[i] + f) : [];
+}
+
 export type ChordTemplate = {
   /** 各弦が鳴らすピッチクラス (4弦 → 1弦) */
   stringPcs: number[];

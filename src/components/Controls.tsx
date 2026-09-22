@@ -97,7 +97,25 @@ export function Controls({ settings, patch, running, onToggle, mode, scoreReady 
         />
       </div>
 
+      <div className="row">
+        <span className="lbl">お手本</span>
+        <Segmented
+          label="お手本"
+          options={[
+            { value: true, label: 'あり' },
+            { value: false, label: 'なし' },
+          ]}
+          value={settings.demoOn}
+          onChange={(v) => patch({ demoOn: v })}
+        />
+      </div>
+
       {score && <p className="note">コードの長さと練習の長さは、楽譜が決めます。テンポだけ変えられます。</p>}
+      {settings.demoOn && (
+        <p className="note warn">
+          お手本は必ずイヤホンで聞いてください。スピーカーのままだと、お手本をマイクが拾って、弾かなくても高い点が出ます。
+        </p>
+      )}
       <p className="note">クリック音はイヤホンで聞くと、マイクへの回り込みが減って採点が安定します。</p>
     </section>
   );
