@@ -4,6 +4,7 @@
  * 書式は docs/score-format.md。要は「1小節 = 1つの文字列」で、
  * 小節の中にコードを並べると等分し、"." は前のコードを伸ばす。
  * ストロークは "D-DU-UDU" のような文字列で、文字数がそのまま小節の分割数になる。
+ * 「|」で区切ると小節ごとに順番に当たるので、2小節で1周するパターンも書ける。
  *
  *   { "title": "きらきら星", "bpm": 90, "strum": "D-DU-UDU",
  *     "sections": [{ "name": "Aメロ", "repeat": 2, "bars": ["C", "F C"] }] }
@@ -29,7 +30,10 @@ export type Score = {
   bars: number;
   /** 出てきた順の、使われているコード */
   chords: string[];
-  /** 画面に出すストローク。セクションごとに違えば null */
+  /**
+   * 画面に出すストローク。2小節以上で1周するパターンは "…|…" でつないである。
+   * セクションごとに違えば null
+   */
   strum: string | null;
   sections: { name: string; bars: number; repeat: number }[];
 };
@@ -48,7 +52,7 @@ const GRID_DIV = 4;
 
 const err = (error: string): ParseResult => ({ ok: false, error });
 
-type RawSection = { name: string; bars: string[]; repeat: number; strum: string | null };
+type RawSection = { name: string; bars: string[]; repeat: number; strum: string[] | null };
 
 export function parseScore(text: string): ParseResult {
   let raw: unknown;
@@ -93,7 +97,8 @@ export function parseScore(text: string): ParseResult {
 
   for (const sec of sections) {
     for (let r = 0; r < sec.repeat; r++) {
-      for (const bar of sec.bars) {
+      for (let bi = 0; bi < sec.bars.length; bi++) {
+        const bar = sec.bars[bi];
         barNo++;
         const where = sec.name ? `${sec.name} ${barNo}小節目` : `${barNo}小節目`;
         const tokens = bar.split(/\s+/).filter(Boolean);
@@ -115,9 +120,12 @@ export function parseScore(text: string): ParseResult {
           }
         }
         if (sec.strum) {
-          const step = beatsPerBar / sec.strum.length;
-          for (let i = 0; i < sec.strum.length; i++) {
-            const c = sec.strum[i];
+          // パターンが複数あれば、小節の並びの先頭から順に当てる。
+          // 繰り返しのたびに先頭へ戻るので、2小節パターンが途中でずれない
+          const pat = sec.strum[bi % sec.strum.length];
+          const step = beatsPerBar / pat.length;
+          for (let i = 0; i < pat.length; i++) {
+            const c = pat[i];
             if (!REST.includes(c)) hits.push({ beat: beat + i * step, dir: c as Stroke });
           }
         }
@@ -133,7 +141,7 @@ export function parseScore(text: string): ParseResult {
   if (errors.length) return err(errors.join('\n'));
   if (!slots.length) return err('コードがありません。');
 
-  const strums = new Set(sections.map((s) => s.strum ?? ''));
+  const strums = new Set(sections.map((s) => (s.strum ?? []).join(' | ')));
   return {
     ok: true,
     score: {
@@ -164,7 +172,7 @@ function push(errors: string[], msg: string): void {
 function readSections(
   obj: Record<string, unknown>,
   beatsPerBar: number,
-  topStrum: string | null,
+  topStrum: string[] | null,
 ): RawSection[] | string {
   if (!('sections' in obj)) {
     const bars = flattenBars(obj.bars);
@@ -196,28 +204,48 @@ function readSections(
   return out;
 }
 
-type StrumResult = { ok: true; strum: string | null } | { ok: false; error: string };
+type StrumResult = { ok: true; strum: string[] | null } | { ok: false; error: string };
 
-/** ストロークの文字列を正規化する。文字数がそのまま小節の分割数になる */
+/**
+ * ストロークを正規化する。1つのパターンの文字数が、その小節の分割数になる。
+ *
+ * 小節は `bars` と同じく「|」で区切るか、配列で並べる。2つ以上あると、
+ * 小節の並びの先頭から順に当てていく。ボサノバのように1周が2小節ある
+ * パターンは、これで書く。
+ *
+ *   "D-D--U-- | D--U--D-"   ↔   ["D-D--U--", "D--U--D-"]
+ *
+ * 片方が休みだけでも通す (2小節パターンの裏返しとしてありうる)。
+ * 1周のどこでも鳴らないときだけ断る。
+ */
 function readStrum(value: unknown, beatsPerBar: number, where: string): StrumResult {
   const bad = (error: string): StrumResult => ({ ok: false, error });
   if (value == null) return { ok: true, strum: null };
-  if (typeof value !== 'string') return bad(`${where} は "D-DU-UDU" のような文字列にしてください。`);
-  const s = value
-    .replace(/\s+/g, '')
-    .replace(/↓/g, 'D')
-    .replace(/↑/g, 'U')
-    .replace(/[dD]/g, 'D')
-    .replace(/[uU]/g, 'U')
-    .replace(/[xX]/g, 'x')
-    .replace(/[._]/g, '-');
-  if (!s) return { ok: true, strum: null };
-  if (!/^[DUx-]+$/.test(s))
-    return bad(`${where}: 使えるのは D (ダウン)、U (アップ)、x (ミュート)、- (鳴らさない) です。`);
-  if ((beatsPerBar * GRID_DIV) % s.length !== 0)
-    return bad(`${where}: ${s.length}文字だと${beatsPerBar}拍を割り切れません。${divisors(beatsPerBar)} 文字のどれかにしてください。`);
-  if (!s.split('').some((c) => c !== '-')) return bad(`${where}: 1回も鳴らしません。`);
-  return { ok: true, strum: s };
+  const list: unknown[] = Array.isArray(value) ? value : [value];
+  const out: string[] = [];
+  for (const item of list) {
+    if (typeof item !== 'string')
+      return bad(`${where} は "D-DU-UDU" のような文字列か、その配列にしてください。`);
+    for (const part of item.split('|')) {
+      const s = part
+        .replace(/\s+/g, '')
+        .replace(/↓/g, 'D')
+        .replace(/↑/g, 'U')
+        .replace(/[dD]/g, 'D')
+        .replace(/[uU]/g, 'U')
+        .replace(/[xX]/g, 'x')
+        .replace(/[._]/g, '-');
+      if (!s) continue;
+      if (!/^[DUx-]+$/.test(s))
+        return bad(`${where}: 使えるのは D (ダウン)、U (アップ)、x (ミュート)、- (鳴らさない) です。`);
+      if ((beatsPerBar * GRID_DIV) % s.length !== 0)
+        return bad(`${where}: ${s.length}文字だと${beatsPerBar}拍を割り切れません。${divisors(beatsPerBar)} 文字のどれかにしてください。`);
+      out.push(s);
+    }
+  }
+  if (!out.length) return { ok: true, strum: null };
+  if (!out.some((s) => s.split('').some((c) => c !== '-'))) return bad(`${where}: 1回も鳴らしません。`);
+  return { ok: true, strum: out };
 }
 
 /** その拍子で使える文字数 (16分まで) */
