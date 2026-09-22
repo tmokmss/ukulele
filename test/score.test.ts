@@ -202,6 +202,46 @@ describe('ストローク', () => {
   });
 });
 
+describe('2小節で1周するストローク (ボサノバなど)', () => {
+  it('「|」で区切ると、小節ごとに順番に当たる', () => {
+    // 1小節目は頭、2小節目は2拍目
+    expect(ok('{"strum":"D--- | -D--","bars":["C","F"]}').hits.map((h) => h.beat)).toEqual([0, 5]);
+  });
+
+  it('配列でも同じように書ける', () => {
+    expect(ok('{"strum":["D---","-D--"],"bars":["C","F"]}').hits.map((h) => h.beat)).toEqual([0, 5]);
+  });
+
+  it('小節ごとに細かさを変えられる', () => {
+    // 1小節目は4分、2小節目は8分
+    expect(ok('{"strum":"DDDD | D-D-D-D-","bars":["C","F"]}').hits.map((h) => h.beat)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ]);
+  });
+
+  it('繰り返しのたびに先頭へ戻る (奇数小節でも周期がずれない)', () => {
+    const s = ok('{"strum":"D--- | -D--","sections":[{"repeat":2,"bars":["C"]}]}');
+    // 2周目も1小節目なので、また "D---" が当たる
+    expect(s.hits.map((h) => h.beat)).toEqual([0, 4]);
+  });
+
+  it('片方の小節が休みだけでもいい', () => {
+    expect(ok('{"strum":"D-D- | ----","bars":["C","F"]}').hits.map((h) => h.beat)).toEqual([0, 2]);
+  });
+
+  it('1周まるごと鳴らさないときだけ断る', () => {
+    expect(ng('{"strum":"---- | ----","bars":["C","F"]}')).toContain('1回も鳴らしません');
+  });
+
+  it('画面には「|」でつないだ形で出す', () => {
+    expect(ok('{"strum":"D--- | -D--","bars":["C","F"]}').strum).toBe('D--- | -D--');
+  });
+
+  it('割り切れない小節があれば、そこで断る', () => {
+    expect(ng('{"strum":"DDDD | DDD","bars":["C","F"]}')).toContain('3文字');
+  });
+});
+
 describe('セクション', () => {
   it('繰り返しを展開して並べる', () => {
     const s = ok('{"sections":[{"name":"A","repeat":2,"bars":["C","F"]},{"name":"B","bars":["G7"]}]}');
