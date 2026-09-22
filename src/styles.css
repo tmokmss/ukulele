@@ -125,8 +125,22 @@ button:disabled{opacity:.45;cursor:default}
 .feedback .t{font-weight:700}
 .good-t{color:var(--good)} .warn-t{color:var(--sun)} .miss-t{color:var(--miss)}
 
+/* transport */
+.transport{margin-top:16px}
+.tp-row{display:flex;gap:8px;margin-top:10px}
+.tp-row .btn-sub{flex:1;padding:9px 6px;font-weight:700;color:var(--ink)}
+.tp-row .btn-sub.wide{flex:1.4}
+.tp-row .btn-sub.on{border-color:var(--accent);border-width:2.5px;color:var(--accent)}
+.btn-sub:disabled{opacity:.42}
+.tp-seek{display:flex;align-items:center;gap:10px;margin-top:12px}
+.tp-seek input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.tp-seek input[type=range]:disabled{opacity:.42}
+.tp-seek output{width:78px;text-align:right;font-size:13px;font-weight:700;color:var(--muted)}
+.transport .note{margin-top:10px}
+
 /* controls */
 .controls{margin-top:16px}
+.row.first{margin-top:0}
 .btn-main{
   width:100%;border:0;border-radius:18px;padding:15px;font-size:17px;font-weight:900;
   background:var(--accent);color:var(--accent-ink);

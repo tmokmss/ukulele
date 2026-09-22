@@ -8,6 +8,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { SongPanel } from './components/SongPanel';
 import { Stage, LANE_DOT_MAX, type LaneDot, type StageFeedback } from './components/Stage';
 import { SummaryPanel } from './components/SummaryPanel';
+import { Transport } from './components/Transport';
 import { median } from './core/chroma';
 import {
   cardVerdict,
@@ -54,6 +55,7 @@ export default function App() {
 
   const [source, setSource] = useState<SourceState>({ source: 'none', message: null, warn: false });
   const [running, setRunning] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [tick, setTick] = useState<TickInfo | null>(null);
   const [dots, setDots] = useState<LaneDot[]>([]);
   const [feedback, setFeedback] = useState<StageFeedback | null>(null);
@@ -77,13 +79,23 @@ export default function App() {
   );
   // 速い曲では、クロマ用の FFT の窓 (約340ms) が足りない。そのときはリズムだけ見る
   const chordJudge = canJudgeChords(tl, settings.bpm);
+  // 練習の終わり。楽譜は回数で、進行は練習時間で決まる。位置バーの目盛りもここから
+  const end = useMemo(() => planEnd(tl, settings.bpm, settings.sessionSec), [tl, settings.bpm, settings.sessionSec]);
   const [anchor, setAnchor] = useState(-1);
   const anchorRef = useRef(-1);
-  useFrame(engine, ({ pos }) => {
+  // 位置バーが指すコード。カウントイン中は、これから入るコードを指しておく
+  const [cursor, setCursor] = useState(-1);
+  const cursorRef = useRef(-1);
+  useFrame(engine, ({ pos, lead }) => {
     const i = pos == null ? -1 : slotIndexAt(tl, pos);
     if (i !== anchorRef.current) {
       anchorRef.current = i;
       setAnchor(i);
+    }
+    const c = pos == null ? -1 : slotIndexAt(tl, pos + (lead ?? 0));
+    if (c !== cursorRef.current) {
+      cursorRef.current = c;
+      setCursor(c);
     }
   });
 
@@ -101,6 +113,15 @@ export default function App() {
     void engine.useMic();
   }, [engine]);
   useEffect(() => engine.on('running', setRunning), [engine]);
+  useEffect(() => engine.on('paused', setPaused), [engine]);
+  // 位置が飛んだら、その先のカードに残っている採点を消す。弾き直すぶんは、これからの結果で付け直す
+  useEffect(
+    () =>
+      engine.on('seek', (s) =>
+        setVerdicts((m) => new Map([...m].filter(([k]) => k < s))),
+      ),
+    [engine],
+  );
   useEffect(() => engine.on('tick', setTick), [engine]);
   useEffect(() => engine.on('calib', (ms) => patch({ calibMs: ms })), [engine, patch]);
   useEffect(
@@ -155,7 +176,7 @@ export default function App() {
     [engine, settings, mode, score],
   );
 
-  const onToggle = () => {
+  const onToggle = useCallback(() => {
     if (engine.isRunning) {
       engine.stop(true);
       return;
@@ -164,9 +185,49 @@ export default function App() {
     setVerdicts(new Map());
     setSummary(null);
     setFinished(false);
-    const plan = { tl, bpm: settings.bpm, end: planEnd(tl, settings.bpm, settings.sessionSec), chordJudge };
-    if (engine.start(plan)) setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
-  };
+    if (engine.start({ tl, bpm: settings.bpm, end, chordJudge }))
+      setFeedback({ timing: 'カウントインのあと、はじまります。', tone: null, chord: '' });
+  }, [engine, tl, settings.bpm, end, chordJudge]);
+
+  const onPause = useCallback(() => {
+    if (engine.isPaused) engine.resume();
+    else engine.pause();
+  }, [engine]);
+
+  // バーをつまんでいるあいだは止めておく。1目盛りごとにカウントインからやり直すと落ち着かない
+  const scrubbing = useRef(false);
+  const onScrubStart = useCallback(() => {
+    if (!engine.isRunning || engine.isPaused) return;
+    scrubbing.current = true;
+    engine.pause();
+  }, [engine]);
+  const onScrubEnd = useCallback(() => {
+    if (!scrubbing.current) return;
+    scrubbing.current = false;
+    engine.resume();
+  }, [engine]);
+
+  // 練習画面だけ。設定画面では、見えないところで動いているものを触らせない
+  useEffect(() => {
+    if (view !== 'practice') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      // 入力やボタンに触っているあいだは、その部品の操作を優先する
+      if ((e.target as HTMLElement | null)?.closest('input,textarea,select,button,[contenteditable],[role="dialog"]'))
+        return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (engine.isRunning) onPause();
+        else onToggle();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (!engine.isRunning) return;
+        e.preventDefault();
+        engine.seek(e.key === 'ArrowLeft' ? -1 : 1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [engine, view, onToggle, onPause]);
 
   const onAutoCalib = () => {
     if (lastOffsets.length < AUTO_CALIB_MIN_SAMPLES) return;
@@ -225,20 +286,26 @@ export default function App() {
         verdicts={verdicts}
         chord={chord}
         next={next}
-        phase={phaseText(tl, running ? tick : null)}
+        phase={paused ? '一時停止中' : phaseText(tl, running ? tick : null)}
         dots={dots}
         feedback={feedback}
         chordJudge={chordJudge}
       />
 
-      <Controls
-        settings={settings}
-        patch={patch}
+      <Transport
         running={running}
+        paused={paused}
         onToggle={onToggle}
-        mode={mode}
-        scoreReady={score != null}
+        onPause={onPause}
+        onSeek={(d) => engine.seek(d)}
+        onScrub={(s) => engine.seekTo(s)}
+        onScrubStart={onScrubStart}
+        onScrubEnd={onScrubEnd}
+        slot={cursor}
+        total={end?.slots ?? null}
       />
+
+      <Controls settings={settings} patch={patch} running={running} mode={mode} scoreReady={score != null} />
 
       {mode === 'drill' && (
         <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />

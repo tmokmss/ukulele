@@ -63,7 +63,7 @@ export function ChordLane({ engine, tl, anchor, verdicts }: Props) {
   // 楽譜がストロークを決めていれば、鳴らす位置を矢印で出す
   const hits = useMemo(() => hitsInRange(tl, from, to), [tl, from, to]);
 
-  useFrame(engine, ({ pos }) => {
+  useFrame(engine, ({ pos, lead }) => {
     const strip = stripRef.current;
     if (!strip) return;
     const p = pos ?? 0;
@@ -83,7 +83,7 @@ export function ChordLane({ engine, tl, anchor, verdicts }: Props) {
     const count = countRef.current;
     if (count) {
       // t0 は 0.2秒ぶん先にあるので、頭が COUNT_IN+1 にならないよう抑える
-      const text = pos != null && pos < 0 ? String(Math.min(COUNT_IN, Math.ceil(-pos))) : '';
+      const text = lead == null ? '' : String(Math.min(COUNT_IN, Math.ceil(lead)));
       if (count.textContent !== text) count.textContent = text;
     }
   });

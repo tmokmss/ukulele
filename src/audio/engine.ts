@@ -10,6 +10,7 @@
 import { chordMidi, TEMPL } from '../core/chords';
 import { computeChroma, scoreChords } from '../core/chroma';
 import { detectPitch, type Pitch } from '../core/pitch';
+import { addSpan, cutSpans, inSpans, type Span } from '../core/ranges';
 import {
   firstHitBeat,
   hitsBefore,
@@ -72,10 +73,12 @@ export type FrameInfo = {
   /** 鳴っている1音の高さ。チューナーを開いているあいだだけ入る */
   pitch: Pitch | null;
   /**
-   * 練習の現在位置 (拍単位・小数)。カウントイン中は負、止まっているときは null。
-   * 拍のバーを毎フレーム滑らかに動かすために渡す。
+   * 練習の現在位置 (拍単位・小数)。練習していないときは null。
+   * 一時停止中は止めた位置のまま動かない。拍のバーを毎フレーム滑らかに動かすために渡す。
    */
   pos: number | null;
+  /** カウントインが終わるまでの拍数。本番に入っていれば null */
+  lead: number | null;
 };
 
 export type OnsetInfo = {
@@ -90,6 +93,10 @@ type EventMap = {
   /** マイク接続時に推定した遅延補正 (ms) */
   calib: number;
   running: boolean;
+  /** 一時停止したか、再開したか */
+  paused: boolean;
+  /** 位置が飛んだ。そのコードから先の採点はやり直しになる */
+  seek: number;
   tick: TickInfo;
   onset: OnsetInfo;
   result: SegmentResult;
@@ -98,9 +105,20 @@ type EventMap = {
 
 type Run = {
   plan: Plan;
+  /** 拍0の時刻。一時停止や位置移動のたびに引き直す */
   t0: number;
   beatDur: number;
   nextK: number;
+  /** カウントインの最初の拍 */
+  leadStart: number;
+  /** ここから先が本番。これより前の拍はカウントインで、鳴らしても採点しない */
+  liveBeat: number;
+  /** 一時停止中の位置 (拍)。動いているあいだは null */
+  paused: number | null;
+  /** いま続けて弾いている区間の始まり (拍) */
+  segStart: number;
+  /** これまでに通った区間 (拍)。飛ばしたところを採点の母数に入れないために持つ */
+  played: Span[];
   /** 拾えたストロークのズレ。キーは合わせにいった拍 (打点があればその位置) */
   offs: Map<number, number>;
   /** 同じ位置の音の強さ */
@@ -190,6 +208,10 @@ export class TrainerEngine {
 
   get isRunning(): boolean {
     return this.run !== null;
+  }
+
+  get isPaused(): boolean {
+    return this.run?.paused != null;
   }
 
   // ---------- audio graph ----------
@@ -375,6 +397,7 @@ export class TrainerEngine {
     for (const h of hitsInRange(tl, k, k + 1)) {
       // hitsInRange は両端を含むので、次の拍の頭をここで二度鳴らさないように落とす
       if (h.beat >= k + 1 - 1e-9) continue;
+      if (h.beat < run.liveBeat) continue;
       if (endBeat != null && h.beat >= endBeat) continue;
       at(h.beat, h.dir);
     }
@@ -383,7 +406,7 @@ export class TrainerEngine {
   private scheduler = (): void => {
     const run = this.run;
     const ctx = this.ctx;
-    if (!run || !ctx) return;
+    if (!run || !ctx || run.paused != null) return;
     const { barBeats } = run.plan.tl;
     const endBeat = run.plan.end?.beat ?? null;
     const horizon = ctx.currentTime + 0.15;
@@ -391,9 +414,10 @@ export class TrainerEngine {
       const k = run.nextK;
       const t = run.t0 + k * run.beatDur;
       if (endBeat == null || k < endBeat) {
-        if (this.settings.clickOn) this.click(t, k >= 0 ? k % barBeats === 0 : k === -COUNT_IN);
+        // カウントインは頭だけアクセント。本番に入ったら小節の頭で鳴らす
+        if (this.settings.clickOn) this.click(t, k >= run.liveBeat ? k % barBeats === 0 : k === run.leadStart);
         // カウントイン中は鳴らさない。お手本より先に自分で数えてもらう
-        if (this.settings.demoOn && k >= 0) this.demo(k);
+        if (this.settings.demoOn && k >= run.liveBeat) this.demo(k);
       }
       run.nextK++;
     }
@@ -421,7 +445,8 @@ export class TrainerEngine {
     // ここが16分音符の上限でもある (110ms = 135BPM の16分)
     if (flux > thr && now - this.lastOnset > 0.11) {
       this.lastOnset = now;
-      if (this.run) this.matchOnset(this.run, now - 0.012 - this.calibSec());
+      const run = this.run;
+      if (run && run.paused == null) this.matchOnset(run, now - 0.012 - this.calibSec());
     }
   }
 
@@ -432,6 +457,8 @@ export class TrainerEngine {
   private matchOnset(run: Run, tA: number): void {
     const { tl, end } = run.plan;
     const beat = (tA - run.t0) / run.beatDur;
+    // カウントイン中のストロークは数えない。いちばん広い許容 (250ms) の外まで下げる
+    if (beat < run.liveBeat - 0.5) return;
     const m = matchStroke(tl, beat, run.beatDur, end?.beat ?? null);
     if (m.kind === 'none') return;
     if (m.kind === 'extra') {
@@ -463,13 +490,16 @@ export class TrainerEngine {
       return false;
     }
     this.ensureCtx();
-    const ctx = this.ctx!;
-    const beatDur = 60 / plan.bpm;
-    this.run = {
+    const run: Run = {
       plan,
-      t0: ctx.currentTime + 0.2 + COUNT_IN * beatDur,
-      beatDur,
-      nextK: -COUNT_IN,
+      t0: 0,
+      beatDur: 60 / plan.bpm,
+      nextK: 0,
+      leadStart: 0,
+      liveBeat: 0,
+      paused: null,
+      segStart: 0,
+      played: [],
       offs: new Map(),
       levels: new Map(),
       extra: 0,
@@ -478,10 +508,117 @@ export class TrainerEngine {
       results: [],
       timer: setInterval(this.scheduler, 25),
     };
-    this.lastTickKey = '';
-    this.scheduler();
+    this.run = run;
+    this.runFrom(run, 0);
     this.emit('running', true);
     return true;
+  }
+
+  /**
+   * その拍から動かす。手前に COUNT_IN 拍ぶんのカウントインを挟むので、
+   * 練習の頭でも、一時停止からの再開でも、身構える間は同じだけある。
+   */
+  private runFrom(run: Run, beat: number): void {
+    const ctx = this.ctx!;
+    run.liveBeat = beat;
+    // クリックは曲の拍の上に置きたいので、カウントインの頭を整数拍に寄せる
+    run.leadStart = Math.ceil(beat) - COUNT_IN;
+    run.t0 = ctx.currentTime + 0.2 - run.leadStart * run.beatDur;
+    run.nextK = run.leadStart;
+    run.segStart = beat;
+    run.paused = null;
+    this.lastTickKey = '';
+    this.scheduler();
+  }
+
+  /** いまの位置 (拍)。一時停止中は止めた位置 */
+  private beatNow(run: Run): number {
+    return run.paused ?? (this.ctx!.currentTime - run.t0) / run.beatDur;
+  }
+
+  /** いま弾いているコードの番号。カウントイン中は、これから入る位置 */
+  private currentSlot(run: Run): number {
+    const beat = this.beatNow(run);
+    return this.clampSlot(run, slotIndexAt(run.plan.tl, Math.max(beat, run.liveBeat)));
+  }
+
+  /** コードの番号を、練習の範囲に収める */
+  private clampSlot(run: Run, s: number): number {
+    const cap = run.plan.end?.slots;
+    return Math.max(0, cap == null ? s : Math.min(s, cap - 1));
+  }
+
+  /** いま続けて弾いていた区間を「通った」として畳む。止まるとき・位置が飛ぶときに呼ぶ */
+  private closeSpan(run: Run, beat: number): void {
+    run.played = addSpan(run.played, run.segStart, Math.min(beat, run.plan.end?.beat ?? Infinity));
+  }
+
+  /**
+   * そのコードから先の採点を捨てる。
+   * 戻ったときは弾き直しに、飛ばしたときは「弾いていないので採点しない」になる
+   */
+  private rewindTo(run: Run, s: number): void {
+    const from = placeSlot(run.plan.tl, s)?.startBeat ?? 0;
+    run.finalized = s;
+    // 通った記録も同じところまで戻す。弾き直す前のぶんを「鳴らせなかった」に数えないため
+    run.played = cutSpans(run.played, from);
+    run.results = run.results.filter((r) => r.s < s);
+    for (const k of run.acc.keys()) if (k >= s) run.acc.delete(k);
+    for (const k of run.offs.keys()) {
+      if (k < from) continue;
+      run.offs.delete(k);
+      run.levels.delete(k);
+    }
+    this.emit('seek', s);
+  }
+
+  /** 一時停止。弾きかけのコードは頭まで戻して、見えている位置からそのまま再開できるようにする */
+  pause(): void {
+    const run = this.run;
+    if (!run || !this.ctx || run.paused != null) return;
+    this.closeSpan(run, this.beatNow(run));
+    const s = this.currentSlot(run);
+    const at = placeSlot(run.plan.tl, s)?.startBeat ?? 0;
+    this.rewindTo(run, s);
+    run.paused = at;
+    run.liveBeat = at;
+    run.segStart = at;
+    this.emit('paused', true);
+  }
+
+  /** 再開。止めたコードの頭から、カウントインを挟んで動き出す */
+  resume(): void {
+    const run = this.run;
+    if (!run || !this.ctx || run.paused == null) return;
+    this.runFrom(run, run.paused);
+    this.emit('paused', false);
+  }
+
+  /** コード単位で位置を動かす */
+  seek(deltaSlots: number): void {
+    const run = this.run;
+    if (!run || !this.ctx) return;
+    this.seekTo(this.currentSlot(run) + deltaSlots);
+  }
+
+  /**
+   * そのコードの頭へ飛ぶ。
+   * 動いているあいだはカウントインを挟んで弾き直し、一時停止中は位置だけ動かす
+   */
+  seekTo(slot: number): void {
+    const run = this.run;
+    if (!run || !this.ctx) return;
+    const s = this.clampSlot(run, slot);
+    const at = placeSlot(run.plan.tl, s)?.startBeat;
+    if (at == null) return;
+    this.closeSpan(run, this.beatNow(run));
+    this.rewindTo(run, s);
+    if (run.paused == null) this.runFrom(run, at);
+    else {
+      run.paused = at;
+      run.liveBeat = at;
+      run.segStart = at;
+    }
   }
 
   stop(byUser: boolean): void {
@@ -489,36 +626,41 @@ export class TrainerEngine {
     const ctx = this.ctx;
     if (!run || !ctx) return;
     clearInterval(run.timer);
-    const beatA = (ctx.currentTime - this.calibSec() - run.t0) / run.beatDur;
+    const beatA = run.paused ?? (ctx.currentTime - this.calibSec() - run.t0) / run.beatDur;
     const s = slotIndexAt(run.plan.tl, beatA);
     const p = s >= 0 ? placeSlot(run.plan.tl, s) : null;
     // 手で止めたときは、そのコードを6割以上弾いていれば採点に入れる
     if (byUser && p && beatA - p.startBeat > 0.6 * p.beats) this.finalizeUpTo(s + 1);
     else this.finalizeUpTo(s);
+    this.closeSpan(run, beatA);
     const payload: SessionResult = {
       results: run.results,
-      rhythm: this.tally(run, beatA),
+      rhythm: this.tally(run),
       chordJudged: run.plan.chordJudge,
     };
+    const wasPaused = run.paused != null;
     this.run = null;
+    if (wasPaused) this.emit('paused', false);
     this.emit('running', false);
     this.emit('end', payload);
   }
 
   /** ストロークの集計。打点が決まっている曲でだけ出す */
-  private tally(run: Run, stopBeat: number): RhythmTally | null {
-    const { tl, end } = run.plan;
+  private tally(run: Run): RhythmTally | null {
+    const { tl } = run.plan;
     if (!tl.hits.length) return null;
-    const until = Math.max(0, end ? Math.min(end.beat, stopBeat) : stopBeat);
+    // 数えるのは通った区間のぶんだけ。飛ばしたところは「鳴らせなかった」ではなく、弾いていない
+    let expected = 0;
+    for (const [a, b] of run.played) expected += hitsBefore(tl, b) - hitsBefore(tl, a);
     const offsets: number[] = [];
     const levels: number[] = [];
     for (const [at, off] of run.offs) {
-      if (at >= until) continue;
+      if (!inSpans(run.played, at)) continue;
       offsets.push(off * 1000);
       const lv = run.levels.get(at);
       if (lv != null) levels.push(lv);
     }
-    return { expected: hitsBefore(tl, until), played: offsets.length, extra: run.extra, offsets, levels };
+    return { expected, played: offsets.length, extra: run.extra, offsets, levels };
   }
 
   private finalizeUpTo(sEnd: number): void {
@@ -582,20 +724,23 @@ export class TrainerEngine {
         for (let i = 0; i < 12; i++) this.live[i] += 0.35 * (this.frameCh[i] - this.live[i]);
       }
     }
-    this.emitFrame(judging, maxDb, run ? (now - run.t0) / run.beatDur : null, pitch);
-    if (!run) return;
+    // 一時停止中は、止めた位置のまま画面だけ動かしておく
+    const beat = run ? this.beatNow(run) : null;
+    const lead = run && run.paused == null && beat! < run.liveBeat ? run.liveBeat - beat! : null;
+    this.emitFrame(judging, maxDb, beat, lead, pitch);
+    if (!run || run.paused != null) return;
     const { tl, end } = run.plan;
     const tA = now - this.calibSec();
-    const beat = (now - run.t0) / run.beatDur;
     this.pushTick({
-      beat,
-      slot: slotIndexAt(tl, beat),
-      leftSec: end ? Math.max(0, (end.beat - beat) * run.beatDur) : null,
+      beat: beat!,
+      slot: slotIndexAt(tl, beat!),
+      leftSec: end ? Math.max(0, (end.beat - beat!) * run.beatDur) : null,
+      lead: lead != null,
     });
 
-    // 解析は補正後の時刻で区切る
+    // 解析は補正後の時刻で区切る。カウントイン中は、まだどのコードも聞かない
     const beatA = (tA - run.t0) / run.beatDur;
-    const sA = slotIndexAt(tl, beatA);
+    const sA = beatA < run.liveBeat ? -1 : slotIndexAt(tl, beatA);
     const slot = sA >= 0 && (end == null || sA < end.slots) ? placeSlot(tl, sA) : null;
     if (slot) {
       const segDur = slot.beats * run.beatDur;
@@ -622,13 +767,13 @@ export class TrainerEngine {
 
   /** 拍の刻みは onFrame 側が持つ。ここは表示が変わる粒度 (拍と秒) でだけ流す */
   private pushTick(t: TickInfo): void {
-    const key = `${Math.floor(t.beat)}|${t.leftSec == null ? '' : Math.ceil(t.leftSec)}`;
+    const key = `${Math.floor(t.beat)}|${t.lead ? 'c' : ''}|${t.leftSec == null ? '' : Math.ceil(t.leftSec)}`;
     if (key === this.lastTickKey) return;
     this.lastTickKey = key;
     this.emit('tick', t);
   }
 
-  private emitFrame(judging: boolean, maxDb: number, pos: number | null, pitch: Pitch | null): void {
+  private emitFrame(judging: boolean, maxDb: number, pos: number | null, lead: number | null, pitch: Pitch | null): void {
     if (!this.frameListeners.size) return;
     let mx = 1e-9;
     for (let i = 0; i < 12; i++) if (this.live[i] > mx) mx = this.live[i];
@@ -639,7 +784,7 @@ export class TrainerEngine {
       const sc = scoreChords(this.live);
       if (sc && sc.bestScore > 0.62) heard = sc.best;
     }
-    const f: FrameInfo = { live: this.live, liveMax: mx, quiet, heard, pos, pitch };
+    const f: FrameInfo = { live: this.live, liveMax: mx, quiet, heard, pos, lead, pitch };
     for (const fn of this.frameListeners) fn(f);
   }
 

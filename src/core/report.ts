@@ -13,7 +13,7 @@ import type { RhythmTally, SegmentResult, SessionResult, TickInfo } from './type
  */
 export function phaseText(tl: Timeline, tick: TickInfo | null): string {
   if (!tick) return '最初のコード';
-  if (tick.beat < 0) return 'カウントイン';
+  if (tick.lead || tick.beat < 0) return 'カウントイン';
   const total = totalBeats(tl);
   if (total != null) {
     const bar = Math.min(Math.floor(tick.beat / tl.barBeats) + 1, Math.ceil(total / tl.barBeats));
