@@ -24,8 +24,9 @@ songs/
   "beatsPerBar": 4,
   "strum": "D-DU-UDU",
   "sections": [
-    { "name": "A", "repeat": 2, "bars": ["C", "F C", "C", "G7 C"] },
-    { "name": "B", "bars": ["F C", "F C", "F C", "G7 C"] }
+    { "name": "A", "bars": ["C", "F C", "F C", "G7 C"] },
+    { "name": "B", "bars": ["C G7", "C G7", "C G7", "C G7"] },
+    { "name": "A'", "bars": ["C", "F C", "F C", "G7 C"] }
   ]
 }
 ```
