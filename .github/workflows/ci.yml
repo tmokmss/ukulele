@@ -1,8 +1,9 @@
 name: CI
 
+# push だけで拾う。チェックはコミットの SHA に紐づくので、これで PR にも出る。
+# pull_request も足すと、PR 中のブランチへの push で同じものが2回走る。
 # main は deploy.yml が同じ test + build を走らせるので、ここでは重ねない
 on:
-  pull_request:
   push:
     branches-ignore: [main]
 
