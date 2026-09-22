@@ -1,0 +1,51 @@
+{
+  "title": "カントリーロード",
+  "source": "https://www.youtube.com/watch?v=mBALnL2CQyU",
+  "sourceTitle": "カントリーロード/耳をすませば《ストローク&コード付・初心者簡単ウクレレ》 - Koyuki channel",
+  "extractedAt": "2026-09-22",
+  "note": "動画のコード帯を読み取ったもの。歌詞は含めない。beats は 4/4 の拍数で、4 が 1 小節。",
+  "bpm": 153,
+  "beatsPerBar": 4,
+  "bars": 128,
+  "pages": [
+    { "page": 1,  "start": 3.0,    "section": "A1", "chords": [["C", 8], ["Dm", 8]] },
+    { "page": 2,  "start": 10.0,   "section": "A1", "chords": [["Am", 8], ["F", 8]] },
+    { "page": 3,  "start": 16.75,  "section": "A1", "chords": [["C", 8], ["G7", 8]] },
+    { "page": 4,  "start": 22.5,   "section": "A1", "chords": [["F", 8], ["C", 8]] },
+
+    { "page": 5,  "start": 28.75,  "section": "A2", "chords": [["C", 8], ["Am", 8]] },
+    { "page": 6,  "start": 35.5,   "section": "A2", "chords": [["G7", 8], ["Dm", 4], ["C", 4]] },
+    { "page": 7,  "start": 41.75,  "section": "A2", "chords": [["C", 8], ["Am", 8]] },
+    { "page": 8,  "start": 48.25,  "section": "A2", "chords": [["G7", 8], ["Dm", 2], ["G7", 2], ["C", 4]] },
+
+    { "page": 9,  "start": 54.0,   "section": "R1", "chords": [["C", 8], ["Dm", 8]] },
+    { "page": 10, "start": 60.5,   "section": "R1", "chords": [["Am", 8], ["F", 8]] },
+    { "page": 11, "start": 66.75,  "section": "R1", "chords": [["C", 8], ["G7", 8]] },
+    { "page": 12, "start": 73.25,  "section": "R1", "chords": [["F", 8], ["C", 8]] },
+
+    { "page": 13, "start": 79.25,  "section": "A3", "chords": [["C", 8], ["Am", 8]] },
+    { "page": 14, "start": 86.0,   "section": "A3", "chords": [["G7", 8], ["Dm", 4], ["C", 4]] },
+    { "page": 15, "start": 92.25,  "section": "A3", "chords": [["C", 8], ["Am", 8]] },
+    { "page": 16, "start": 98.5,   "section": "A3", "chords": [["G7", 8], ["Dm", 2], ["G7", 2], ["C", 4]] },
+
+    { "page": 17, "start": 104.25, "section": "R2", "chords": [["C", 8], ["Dm", 8]] },
+    { "page": 18, "start": 110.75, "section": "R2", "chords": [["Am", 8], ["F", 8]] },
+    { "page": 19, "start": 116.75, "section": "R2", "chords": [["C", 8], ["G7", 8]] },
+    { "page": 20, "start": 122.75, "section": "R2", "chords": [["F", 8], ["C", 8]] },
+
+    { "page": 21, "start": 129.0,  "section": "B",  "chords": [["Am", 4], ["G7", 4], ["C", 8]] },
+    { "page": 22, "start": 135.25, "section": "B",  "chords": [["Dm", 4], ["C", 4], ["G7", 8]] },
+    { "page": 23, "start": 141.5,  "section": "B",  "chords": [["Am", 4], ["G7", 4], ["F", 4], ["C", 4]] },
+    { "page": 24, "start": 147.5,  "section": "B",  "chords": [["G7", 16]] },
+
+    { "page": 25, "start": 153.5,  "section": "R3", "chords": [["C", 8], ["Dm", 8]] },
+    { "page": 26, "start": 160.0,  "section": "R3", "chords": [["Am", 8], ["F", 8]] },
+    { "page": 27, "start": 166.25, "section": "R3", "chords": [["C", 8], ["G7", 8]] },
+    { "page": 28, "start": 172.0,  "section": "R3", "chords": [["F", 8], ["C", 8]] },
+
+    { "page": 29, "start": 178.25, "section": "R4", "chords": [["C", 8], ["Dm", 8]] },
+    { "page": 30, "start": 184.25, "section": "R4", "chords": [["Am", 8], ["F", 8]] },
+    { "page": 31, "start": 190.5,  "section": "R4", "chords": [["C", 8], ["G7", 8]] },
+    { "page": 32, "start": 196.25, "section": "R4", "chords": [["F", 8], ["C", 8]] }
+  ]
+}
