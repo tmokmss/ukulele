@@ -3,7 +3,7 @@
   "source": "https://www.youtube.com/watch?v=mBALnL2CQyU",
   "sourceTitle": "カントリーロード/耳をすませば《ストローク&コード付・初心者簡単ウクレレ》 - Koyuki channel",
   "extractedAt": "2026-09-22",
-  "note": "動画のコード帯を読み取ったもの。歌詞は含めない。beats は 4/4 の拍数で、4 が 1 小節。",
+  "note": "動画のコード帯を読み取った生の結果。歌詞は含めない。beats は 4/4 の拍数で、4 が 1 小節。この動画は倍テンポ表記なので、ここの 1 小節は原曲の半小節にあたる。songs/country-road.json は半分に畳んで 77 BPM / 64 小節にしてある。",
   "bpm": 153,
   "beatsPerBar": 4,
   "bars": 128,
