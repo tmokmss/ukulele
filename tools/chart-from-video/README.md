@@ -27,12 +27,22 @@ python extract.py "<YouTube URL>" -o out/
 
 ## charts/*.json
 
-`chords` は `[コード名, 拍数]` の並び。4 拍で 1 小節。歌詞は入れない。
+読み取った生の結果。`chords` は `[コード名, 拍数]` の並びで、4 拍が 1 小節。
+ページごとに動画の開始秒を持たせてあるので、疑わしい箇所はその秒数へ飛んで見直せる。
+歌詞は入れない。
 
-現在: [country-road.json](charts/country-road.json) — 128 小節 / BPM 153 / C Dm Am F G7
+現在: [country-road.json](charts/country-road.json) — 32 ページ / 128 小節 / BPM 153
 
-## アプリに載せるには
+## アプリの楽譜にする
 
-`Settings.prog` は `string[]` で、長さは `bpc`（1 コードあたりの拍数）が全コード共通。
-この譜面は 2 小節・1 小節・半小節が混ざるので、そのままでは載らない。
-拍数を持てる形に広げるか、均等な進行に丸めるかの判断が要る。
+`songs/*.json` に書き直す。形式は [docs/score-format.md](../../docs/score-format.md)、
+書き方は `ukulele-score` スキルにある。拍数から小節へは、
+
+| 抽出結果 | 楽譜 |
+|---|---|
+| 8 拍 (2 小節) | `"C", "."` |
+| 4 拍 (1 小節) | `"C"` |
+| 2 拍 (半小節) | `"Dm G7"` と並べて等分 |
+
+BPM は「1 ページ ÷ 4 小節」から出る。書いたら `npm run score` で検算する。
+小節数 × BPM から出る演奏時間が動画の演奏区間と合っていれば、読み違いはほぼない。
