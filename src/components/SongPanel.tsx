@@ -15,6 +15,8 @@ export function SongPanel({ songId, running, bpm, onPick }: Props) {
   const items: ComboItem[] = SONGS.map(({ id, score }) => ({
     value: id,
     label: score.title,
+    // ファイル名はローマ字で付けてあるので、それだけでもアルファベットで引ける
+    keywords: [id, ...score.keywords],
     hint: `${score.bars}小節 / ${score.beatsPerBar}拍子 / ${score.bpm ?? bpm} BPM · ${score.chords.join(' ')}`,
   }));
 

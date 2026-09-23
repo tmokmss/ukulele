@@ -3,6 +3,10 @@ dist/
 .DS_Store
 *.local
 
+# npm run typecheck が .ts の隣に吐く .js (ソースは .ts だけ)
+src/**/*.js
+vite.config.js
+
 # playwright-cli の作業ファイル
 .playwright-cli/
 

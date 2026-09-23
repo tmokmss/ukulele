@@ -7,7 +7,16 @@ import { Command } from 'cmdk';
  * 見た目は Tailwind ではなく styles.css のトークンに合わせてある。
  * 曲が増えても、打ち込んで絞り込める。
  */
-export type ComboItem = { value: string; label: string; hint?: string };
+export type ComboItem = {
+  value: string;
+  label: string;
+  hint?: string;
+  /** 画面には出さないが、絞り込みで当てる言葉 (ローマ字など) */
+  keywords?: string[];
+};
+
+/** 大文字小文字・空白・ハイフン・中黒の違いでは外さない。"kirakira" で "kirakira-boshi" に当てる */
+const fold = (s: string): string => s.toLowerCase().replace(/[\s\-_・.'’]/g, '');
 
 type Props = {
   items: ComboItem[];
@@ -55,8 +64,10 @@ export function Combobox({
       <Popover.Portal>
         <Popover.Content className="combo-pop" align="start" sideOffset={6}>
           <Command
-            // 絞り込みは曲名と説明の両方に当てる
-            filter={(v, search) => (v.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
+            // 絞り込みは曲名・説明・keywords のどれかに当たればいい
+            filter={(v, search, keywords) =>
+              [v, ...(keywords ?? [])].some((t) => fold(t).includes(fold(search))) ? 1 : 0
+            }
           >
             <Command.Input className="combo-input" placeholder={searchPlaceholder} />
             <Command.List className="combo-list">
@@ -65,6 +76,7 @@ export function Combobox({
                 <Command.Item
                   key={i.value}
                   value={`${i.label} ${i.hint ?? ''}`}
+                  keywords={i.keywords}
                   className="combo-item"
                   onSelect={() => {
                     onChange(i.value);

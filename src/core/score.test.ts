@@ -107,6 +107,13 @@ describe('曲の情報', () => {
     expect(ok('{"bars":["C"]}')).toMatchObject({ bpm: null, beatsPerBar: 4, repeat: 1 });
   });
 
+  it('keywords は文字列1つでも配列でもいい', () => {
+    expect(ok('{"keywords":"zousan","bars":["C"]}').keywords).toEqual(['zousan']);
+    expect(ok('{"keywords":[" zousan ","","Elephant"],"bars":["C"]}').keywords).toEqual(['zousan', 'Elephant']);
+    expect(ok('{"bars":["C"]}').keywords).toEqual([]);
+    expect(ng('{"keywords":[1],"bars":["C"]}')).toContain('keywords');
+  });
+
   it('範囲の外の値は断る', () => {
     expect(ng('{"bpm":500,"bars":["C"]}')).toContain('bpm');
     expect(ng('{"repeat":0,"bars":["C"]}')).toContain('repeat');
