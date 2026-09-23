@@ -7,11 +7,12 @@
 ```
 songs/
   kirakira-boshi.json   ← ファイル名が id (設定に残るのはこれ)
-  island-strum.json
-  waltz.json
+  zousan.json
 ```
 
 - 画面に出る名前は JSON の `title`。ファイル名は半角の小文字とハイフンで付ける
+- 曲の一覧は、`title`・ファイル名・`keywords` のどれでも絞り込める。
+  大文字小文字・空白・ハイフンの違いは無視するので、`kirakira` でも `Kira Kira` でも当たる
 - 増やすときは `.claude/skills/ukulele-score/` のスキルに書かせる
 - コミット前に `npm run score` で全部が読めることを確かめる
   (壊れたものは一覧から消える。`npm test` でも落ちる)
@@ -20,6 +21,7 @@ songs/
 ```json
 {
   "title": "きらきら星",
+  "keywords": ["kirakira boshi", "きらきらぼし", "Twinkle Twinkle Little Star"],
   "bpm": 90,
   "beatsPerBar": 4,
   "strum": "D-DU-UDU",
@@ -37,6 +39,7 @@ songs/
 |---|---|---|
 | `bars` または `sections` | 必須 | 小節。どちらか一方でいい |
 | `title` | 名前のない楽譜 | 曲名。記録にこの名前で残る |
+| `keywords` | なし | 絞り込みで当てる別名。文字列1つか配列。画面には出ない |
 | `bpm` | なし | 読み込んだときテンポに入る (40〜180 に収める)。省略すると、いまのテンポのまま |
 | `beatsPerBar` | 4 | 1小節の拍数。クリックのアクセントもこの間隔で鳴る |
 | `repeat` | 1 | 曲全体を通す回数 |

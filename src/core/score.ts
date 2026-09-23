@@ -17,6 +17,8 @@ import { makeTimeline, type Hit, type Slot, type Stroke, type Timeline } from '.
 
 export type Score = {
   title: string;
+  /** 絞り込みで当てる別名。ローマ字や読み仮名、原題など */
+  keywords: string[];
   /** 楽譜が指定するテンポ。無ければ null で、いまの設定のまま */
   bpm: number | null;
   beatsPerBar: number;
@@ -81,6 +83,10 @@ export function parseScore(text: string): ParseResult {
     bpm = Math.round(obj.bpm);
   }
   const title = typeof obj.title === 'string' && obj.title.trim() ? obj.title.trim() : DEFAULT_TITLE;
+  const kw = obj.keywords == null ? [] : Array.isArray(obj.keywords) ? obj.keywords : [obj.keywords];
+  if (!kw.every((k) => typeof k === 'string'))
+    return err('keywords は文字列か、文字列の配列にしてください。');
+  const keywords = (kw as string[]).map((k) => k.trim()).filter(Boolean);
 
   const top = readStrum(obj.strum, beatsPerBar, 'strum');
   if (!top.ok) return err(top.error);
@@ -146,6 +152,7 @@ export function parseScore(text: string): ParseResult {
     ok: true,
     score: {
       title,
+      keywords,
       bpm,
       beatsPerBar,
       repeat,
