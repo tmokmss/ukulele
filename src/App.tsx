@@ -271,6 +271,20 @@ export default function App() {
         <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
       </header>
 
+      <SongPanel
+        songId={settings.songId}
+        active={mode === 'score'}
+        running={running}
+        bpm={settings.bpm}
+        onPick={(song) =>
+          patch({
+            songId: song.id,
+            mode: 'score',
+            bpm: song.score.bpm == null ? settings.bpm : clampBpm(song.score.bpm),
+          })
+        }
+      />
+
       <MicStatus
         source={source.source}
         message={source.message}
@@ -310,20 +324,6 @@ export default function App() {
       {mode === 'drill' && (
         <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />
       )}
-
-      <SongPanel
-        songId={settings.songId}
-        active={mode === 'score'}
-        running={running}
-        bpm={settings.bpm}
-        onPick={(song) =>
-          patch({
-            songId: song.id,
-            mode: 'score',
-            bpm: song.score.bpm == null ? settings.bpm : clampBpm(song.score.bpm),
-          })
-        }
-      />
 
       <SummaryPanel summary={summary} stopped={finished} />
 
