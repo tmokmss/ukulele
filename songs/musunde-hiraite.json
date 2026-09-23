@@ -1,0 +1,10 @@
+{
+  "title": "むすんでひらいて",
+  "bpm": 100,
+  "strum": "D-DUD-DU",
+  "sections": [
+    { "name": "A", "bars": ["C", "G C", "C", "G C"] },
+    { "name": "B", "bars": ["C", "F C", "C", "F G"] },
+    { "name": "A'", "bars": ["C", "G C", "C", "G C"] }
+  ]
+}

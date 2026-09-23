@@ -1,0 +1,10 @@
+{
+  "title": "大きな栗の木の下で",
+  "bpm": 96,
+  "beatsPerBar": 2,
+  "strum": "D-DU",
+  "sections": [
+    { "name": "A", "bars": ["C", "C", "C G", "C", "C", "C", "F", "C"] },
+    { "name": "B", "bars": ["Am", "Em", "F", "C", "C", "C", "C G", "C"] }
+  ]
+}
