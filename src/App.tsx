@@ -273,7 +273,6 @@ export default function App() {
 
       <SongPanel
         songId={settings.songId}
-        active={mode === 'score'}
         running={running}
         bpm={settings.bpm}
         onPick={(song) =>
