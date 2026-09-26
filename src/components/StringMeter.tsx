@@ -18,7 +18,8 @@ export function StringMeter({ engine, chord }: { engine: TrainerEngine; chord: s
       const el = bars.current[i];
       if (!el) continue;
       const g = !tmpl || f.quiet ? 0 : Math.min(1, f.live[tmpl.stringPcs[i]] / f.liveMax);
-      el.style.opacity = (0.16 + 0.84 * g).toFixed(2);
+      // 鳴っていない弦は木の色、鳴るほど緑に寄せる
+      el.style.background = `color-mix(in srgb, var(--good) ${Math.round(g * 100)}%, var(--line))`;
     }
   });
 
