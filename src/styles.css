@@ -109,7 +109,7 @@ button:disabled{opacity:.45;cursor:default}
 .nowline b{font-size:24px;font-weight:900;color:var(--ink);margin:0 5px}
 .strmeter{display:flex;gap:5px;margin-top:8px;max-width:180px}
 .strmeter div{flex:1;text-align:center}
-.strmeter i{display:block;height:7px;border-radius:4px;background:var(--good);opacity:.16}
+.strmeter i{display:block;height:7px;border-radius:4px;background:var(--line)}
 .strmeter span{font-size:9.5px;color:var(--muted);font-weight:700}
 .nextshape{text-align:center}
 .nextshape .lbl{margin:0 0 4px;font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.03em}
@@ -118,7 +118,7 @@ button:disabled{opacity:.45;cursor:default}
 .lane{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11.5px;color:var(--muted)}
 .lane-track{position:relative;flex:1;height:26px;border-radius:13px;background:var(--bg);overflow:hidden}
 .lane-mid{position:absolute;left:50%;top:3px;bottom:3px;width:2px;margin-left:-1px;background:var(--ink);opacity:.5;border-radius:1px}
-.lane-zone{position:absolute;top:0;bottom:0;left:calc(50% - 16.6%);width:33.2%;background:var(--good);opacity:.13}
+.lane-zone{position:absolute;top:0;bottom:0;left:calc(50% - 16.6%);width:33.2%;background:var(--sun);opacity:.14}
 .lane-dot{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--muted);transition:opacity .4s}
 .lane-dot.big{width:15px;height:15px;margin:-7.5px 0 0 -7.5px}
 .lane-dot.good{background:var(--good)} .lane-dot.warn{background:var(--sun)} .lane-dot.miss{background:var(--miss)}
@@ -180,7 +180,7 @@ select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px soli
 .treading span{font-size:13px;color:var(--muted);font-weight:700}
 
 .tneedle{position:relative;height:52px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);overflow:hidden}
-.tneedle .zone{position:absolute;top:0;bottom:0;left:45%;width:10%;background:var(--good);opacity:.16}
+.tneedle .zone{position:absolute;top:0;bottom:0;left:45%;width:10%;background:var(--sun);opacity:.16}
 .tneedle .mid{position:absolute;left:50%;top:7px;bottom:7px;width:2px;margin-left:-1px;background:var(--ink);opacity:.45;border-radius:1px}
 .tneedle .pin{position:absolute;top:7px;bottom:7px;width:5px;margin-left:-2.5px;border-radius:3px;background:var(--sun)}
 .tneedle .pin.good{background:var(--good)}
