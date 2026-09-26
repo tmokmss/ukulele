@@ -13,3 +13,7 @@ vite.config.js
 # Claude Code の作業ディレクトリ (スキルは追跡する)
 .claude/worktrees/
 .claude/settings.local.json
+
+# 動画から譜面を起こすときの中間生成物 (楽譜は songs/ に置く)
+tools/chart-from-video/out/
+tools/chart-from-video/charts/
