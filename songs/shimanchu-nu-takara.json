@@ -1,0 +1,22 @@
+{
+  "title": "島人ぬ宝",
+  "keywords": ["shimanchu nu takara", "しまんちゅぬたから", "BEGIN"],
+  "bpm": 71,
+  "beatsPerBar": 4,
+  "strum": "D---D-DUD---D-DU",
+  "sections": [
+    { "name": "前奏", "bars": ["C G7", "F", "C G7", "F"] },
+    { "name": "Aメロ1", "bars": ["C G7", "F C", "F C", "Dm G7", "C G7", "F C", "F C", "Dm C"] },
+    { "name": "Bメロ1", "bars": ["G7 Am", "F C", "G7 Am", "F", "G7"] },
+    { "name": "サビ1", "bars": ["C G7", "Am F", "C G7", "F", "F Dm", "G7 F", "F"] },
+    { "name": "間奏1", "bars": ["C G7", "F", "C G7", "F"] },
+    { "name": "Aメロ2", "bars": ["C G7", "F C", "F C", "Dm G7", "C G7", "F C", "F C", "Dm C"] },
+    { "name": "Bメロ2", "bars": ["G7 Am", "F C", "G7 Am", "F", "G7"] },
+    { "name": "サビ2", "bars": ["C G7", "Am F", "C G7", "F", "F Dm", "G7 C", "C"] },
+    { "name": "間奏2", "bars": ["C G7", "F"] },
+    { "name": "Aメロ3", "bars": ["C G7", "F C", "F C", "Dm G7", "C G7", "F C", "F C", "Dm C"] },
+    { "name": "Bメロ3", "bars": ["G7 Am", "F C", "G7 Am", "F", "G7"] },
+    { "name": "サビ3", "bars": ["C G7", "Am F", "C G7", "F", "F Dm", "G7 C", "C Dm", "G7 C"] },
+    { "name": "終わり", "strum": "D---D-DUD------- | D-------D-------", "bars": ["C Dm", "G7 C"] }
+  ]
+}
