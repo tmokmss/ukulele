@@ -8,7 +8,9 @@ python extract.py "<YouTube URL>" -o out/
 ```
 
 `out/tileNN.png` にコード帯がページごとに並ぶので、それを見てコードを書き起こし、
-`charts/*.json` として置く。
+`songs/*.json` にする。`out/` の中身や途中の読み取りメモはコミットしない
+(`out/` と `charts/` は `.gitignore` 済み)。疑わしい箇所は `out/pages.json` の
+開始秒へ飛んで見直せる。
 
 ## なぜこの形か
 
@@ -25,15 +27,9 @@ python extract.py "<YouTube URL>" -o out/
 コード名を読む部分だけは自動化していない。OCR ではダイアグラムと混ざるうえ、
 `G7` と `C7`、`Dm` と `Dm7` の取り違えが致命的になるため。
 
-## charts/*.json
-
-読み取った生の結果。`chords` は `[コード名, 拍数]` の並びで、4 拍が 1 小節。
-ページごとに動画の開始秒を持たせてあるので、疑わしい箇所はその秒数へ飛んで見直せる。
-歌詞は入れない。
-
 ## アプリの楽譜にする
 
-`songs/*.json` に書き直す。形式は [docs/score-format.md](../../docs/score-format.md)、
+形式は [docs/score-format.md](../../docs/score-format.md)、
 書き方は `ukulele-score` スキルにある。拍数から小節へは、
 
 | 抽出結果 | 楽譜 |
