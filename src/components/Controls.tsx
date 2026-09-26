@@ -106,6 +106,7 @@ export function Controls({ settings, patch, running, mode, scoreReady }: Props) 
       </div>
 
       {score && <p className="note">コードの長さと練習の長さは、楽譜が決めます。テンポだけ変えられます。</p>}
+      {settings.demoOn && <p className="note warn">お手本はイヤホンで聞いてください。スピーカーだとマイクが拾います。</p>}
     </section>
   );
 }
