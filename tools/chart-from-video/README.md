@@ -31,11 +31,6 @@ python extract.py "<YouTube URL>" -o out/
 ページごとに動画の開始秒を持たせてあるので、疑わしい箇所はその秒数へ飛んで見直せる。
 歌詞は入れない。
 
-現在:
-
-- [country-road.json](charts/country-road.json) — 32 ページ / 128 小節 / BPM 153
-- [shimanchu-nu-takara.json](charts/shimanchu-nu-takara.json) — 35 ページ / 144 小節 / BPM 142
-
 ## アプリの楽譜にする
 
 `songs/*.json` に書き直す。形式は [docs/score-format.md](../../docs/score-format.md)、
