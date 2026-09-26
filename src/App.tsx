@@ -261,14 +261,13 @@ export default function App() {
     <main>
       <header>
         <div className="head">
-          <h1>コードチェンジ練習</h1>
+          <h1>ウクレレ練習</h1>
           {/* 練習中に移ると、見えないところでメトロノームだけが鳴り続ける */}
           <button type="button" className="btn-quiet" disabled={running} onClick={() => go('settings')}>
             <SlidersIcon />
             設定
           </button>
         </div>
-        <p className="lede">クリックに合わせてコードを切り替えると、タイミングと鳴っている音を採点します。</p>
       </header>
 
       <SongPanel
