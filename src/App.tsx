@@ -268,7 +268,6 @@ export default function App() {
             設定
           </button>
         </div>
-        <p className="lede">曲を選んで、流れてくるコードに合わせて弾くと、タイミングと鳴っている音をマイクで採点します。</p>
       </header>
 
       <SongPanel
