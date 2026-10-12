@@ -152,6 +152,7 @@ songs/
 
 ```
 C  Am  F  G  G7  D  Dsus2  D7  Dm  Em  A  A7  E7  C7  Bb  Am7
+Fmaj7  G6  Dm7  Cmaj7
 ```
 
 知らないコードが入っていると、その名前を並べて読み込みを断る。
