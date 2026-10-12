@@ -317,7 +317,14 @@ export default function App() {
         total={end?.slots ?? null}
       />
 
-      <Controls settings={settings} patch={patch} running={running} mode={mode} scoreReady={score != null} />
+      <Controls
+        settings={settings}
+        patch={patch}
+        running={running}
+        mode={mode}
+        scoreReady={score != null}
+        hasMelody={(score?.notes.length ?? 0) > 0}
+      />
 
       {mode === 'drill' && (
         <Progression prog={settings.prog} onChange={(prog) => patch({ prog })} disabled={running} />

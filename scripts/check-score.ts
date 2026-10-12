@@ -51,6 +51,7 @@ for (const path of paths) {
       ? `   ストローク ${score.strum ?? 'セクションごと'} → 1周 ${score.hits.length} 打`
       : '   ストローク指定なし (コードの切れ目だけ採点)',
   );
+  if (score.notes.length) console.log(`   主旋律 1周 ${score.notes.length} 音`);
   console.log(
     canJudgeChords(tl, bpm)
       ? '   コードも採点できる'

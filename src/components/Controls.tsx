@@ -9,9 +9,11 @@ type Props = {
   mode: PracticeMode;
   /** 楽譜が読めているか。読めていなければ楽譜モードに切り替えられない */
   scoreReady: boolean;
+  /** 楽譜に主旋律が書いてあるか */
+  hasMelody: boolean;
 };
 
-export function Controls({ settings, patch, running, mode, scoreReady }: Props) {
+export function Controls({ settings, patch, running, mode, scoreReady, hasMelody }: Props) {
   const score = mode === 'score';
 
   return (
@@ -105,8 +107,25 @@ export function Controls({ settings, patch, running, mode, scoreReady }: Props) 
         />
       </div>
 
+      {score && hasMelody && (
+        <div className="row">
+          <span className="lbl">主旋律</span>
+          <Segmented
+            label="主旋律"
+            options={[
+              { value: true, label: 'あり' },
+              { value: false, label: 'なし' },
+            ]}
+            value={settings.melodyOn}
+            onChange={(v) => patch({ melodyOn: v })}
+          />
+        </div>
+      )}
+
       {score && <p className="note">コードの長さと練習の長さは、楽譜が決めます。テンポだけ変えられます。</p>}
-      {settings.demoOn && <p className="note warn">お手本はイヤホンで聞いてください。スピーカーだとマイクが拾います。</p>}
+      {(settings.demoOn || (score && hasMelody && settings.melodyOn)) && (
+        <p className="note warn">お手本と主旋律はイヤホンで聞いてください。スピーカーだとマイクが拾います。</p>
+      )}
     </section>
   );
 }

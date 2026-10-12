@@ -17,6 +17,7 @@ import {
   hitsInRange,
   isSlotStart,
   matchStroke,
+  notesInRange,
   placeSlot,
   slotIndexAt,
   type PlanEnd,
@@ -403,6 +404,20 @@ export class TrainerEngine {
     }
   }
 
+  /** 主旋律のうち、k 拍目に鳴り始める音を鳴らす */
+  private melody(k: number): void {
+    const run = this.run;
+    const pluck = this.pluck;
+    if (!run || !pluck) return;
+    const endBeat = run.plan.end?.beat ?? null;
+    for (const n of notesInRange(run.plan.tl, k, k + 1)) {
+      if (n.beat >= k + 1 - 1e-9) continue;
+      if (n.beat < run.liveBeat) continue;
+      if (endBeat != null && n.beat >= endBeat) continue;
+      pluck.note(run.t0 + n.beat * run.beatDur, n.midi, n.beats * run.beatDur);
+    }
+  }
+
   private scheduler = (): void => {
     const run = this.run;
     const ctx = this.ctx;
@@ -418,6 +433,7 @@ export class TrainerEngine {
         if (this.settings.clickOn) this.click(t, k >= run.liveBeat ? k % barBeats === 0 : k === run.leadStart);
         // カウントイン中は鳴らさない。お手本より先に自分で数えてもらう
         if (this.settings.demoOn && k >= run.liveBeat) this.demo(k);
+        if (this.settings.melodyOn && k >= run.liveBeat) this.melody(k);
       }
       run.nextK++;
     }

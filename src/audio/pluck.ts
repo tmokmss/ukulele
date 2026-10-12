@@ -147,6 +147,26 @@ export class Pluck {
     });
   }
 
+  /**
+   * 主旋律を1音鳴らす。ウクレレと聞き分けられるよう、弦ではなく三角波で、
+   * 音符の長さだけ伸ばす。続く音とつながって聞こえないよう、終わりを少し切る
+   */
+  note(t: number, midi: number, dur: number): void {
+    const o = this.ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = freqOf(midi);
+    const g = this.ctx.createGain();
+    const end = t + Math.max(0.05, dur * 0.9);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.01);
+    g.gain.setValueAtTime(0.5, end - 0.03);
+    g.gain.linearRampToValueAtTime(0, end);
+    o.connect(g);
+    g.connect(this.out);
+    o.start(t);
+    o.stop(end);
+  }
+
   dispose(): void {
     this.out.disconnect();
     this.cache.clear();
