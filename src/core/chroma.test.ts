@@ -1,5 +1,5 @@
 /**
- * PoC から移したコード判定ロジックが、16コード全部で通ることを確かめる。
+ * PoC から移したコード判定ロジックが、`CHORDS` の全コードで通ることを確かめる。
  * docs/notes.md にある「Blackman窓のFFTをNodeで再現して検証した」を、リポジトリに残る形にしたもの。
  */
 import { describe, expect, it } from 'vitest';

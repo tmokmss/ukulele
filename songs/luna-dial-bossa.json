@@ -7,7 +7,7 @@
   "sections": [
     {
       "name": "イントロ",
-      "bars": ["Am7", "F", "Am7", "F", "Am7", "F", "Am7", "F"],
+      "bars": ["Am7", "Fmaj7", "Am7", "Fmaj7", "Am7", "Fmaj7", "Am7", "Fmaj7"],
       "melody": [
         "-:8 C5:3 B4:3 C5:2",
         "-:6 C5:2 D5:1 -:1 Eb5:1 -:1 D5:1 -:1 C5:1 -:1",
@@ -21,7 +21,7 @@
     },
     {
       "name": "Aメロ",
-      "bars": ["Am7 E7", "F E7", "Dm E7", "Am7 E7"],
+      "bars": ["Am7 E7", "Fmaj7 E7", "Dm7 E7", "Am7 E7"],
       "melody": [
         "A4:4 E4:2 A4:2 -:2 A4:1 B4:1 C5:1 D5:1 C5:1 B4:1",
         "A4:4 E4:2 A4:2 -:2 A4:1 B4:1 C5:1 D5:1 C5:1 B4:1",
@@ -31,7 +31,7 @@
     },
     {
       "name": "Bメロ",
-      "bars": ["Am7", "F", "Am7", "F", "F", "Dm", "C", "C", "Am7", "F", "Dm", "F"],
+      "bars": ["Am7", "Fmaj7", "Am7", "Fmaj7", "Fmaj7", "Dm7", "Cmaj7", "Cmaj7", "Am7", "Fmaj7", "Dm7", "Fmaj7"],
       "melody": [
         "A4:2 E5:2 D5:2 E5:2 B4:1 -:1 C5:1 E5:1 A4:2 E5:2",
         "D5:2 E5:2 B4:1 -:1 C5:1 E5:1 A4:2 E5:2 D5:2 E5:2",
@@ -50,7 +50,7 @@
     {
       "name": "サビ1",
       "repeat": 2,
-      "bars": ["Am7", "G", "Am7", "G"],
+      "bars": ["Am7", "G6", "Am7", "G6"],
       "melody": [
         "A4:2 E5:2 D5:2 E5:2 B4:1 -:1 C5:1 E5:1 D5:1 C5:1 B4:2",
         "A4:2 E5:2 D5:2 E5:2 B4:1 -:1 C5:1 E5:1 G4:2 A4:2",
@@ -61,7 +61,7 @@
     {
       "name": "サビ2",
       "repeat": 4,
-      "bars": ["Am7", "G", "F", "G"],
+      "bars": ["Am7", "G6", "Fmaj7", "G6"],
       "melody": [
         "A4:2 E5:2 D5:2 E5:2 B4:1 -:1 C5:1 E5:1 D5:1 C5:1 B4:2",
         "A4:2 E5:2 D5:2 E5:2 B4:1 -:1 C5:1 E5:1 G4:2 A4:2",
@@ -72,7 +72,7 @@
     {
       "name": "終わり",
       "strum": "D--UD-U- | D--UD-U- | D--UD-U- | D--UD-U- | D-------",
-      "bars": ["Am7", "F", "Am7", "F", "Am7"],
+      "bars": ["Am7", "Fmaj7", "Am7", "Fmaj7", "Am7"],
       "melody": [
         "-:8 C5:3 B4:3 C5:2",
         "-:6 C5:2 D5:1 -:1 Eb5:1 -:1 D5:1 -:1 C5:1 -:1",
