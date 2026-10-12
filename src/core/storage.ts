@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   clickOn: true,
   // 既定は切っておく。スピーカーのまま鳴らすと、お手本をマイクが拾って採点が壊れる
   demoOn: false,
+  melodyOn: false,
   calibMs: null,
   sens: 6,
   prog: ['C', 'Am', 'F', 'G7'],

@@ -14,6 +14,9 @@ export type Stroke = 'D' | 'U' | 'x';
 /** 楽譜が「ここで鳴らす」と決めている位置。1周ぶんの拍で持つ */
 export type Hit = { beat: number; dir: Stroke };
 
+/** 主旋律の1音。1周ぶんの拍で持つ。ウクレレとは別のパートとして、聞くためだけに鳴らす */
+export type Note = { beat: number; beats: number; midi: number };
+
 export type Timeline = {
   slots: Slot[];
   /** slots[i] が1周目で始まる拍 */
@@ -29,6 +32,8 @@ export type Timeline = {
    * そのときは「コードの切れ目だけを見る」従来の採点に落ちる
    */
   hits: Hit[];
+  /** 主旋律。楽譜に書いてなければ空 */
+  notes: Note[];
 };
 
 /** タイムライン上の1コード。index は周回をまたいで増え続ける絶対番号 */
@@ -49,7 +54,7 @@ export type PlanEnd = {
  */
 export const MIN_CHORD_SEC = 0.5;
 
-type Options = { barBeats?: number; cycles?: number | null; hits?: Hit[] };
+type Options = { barBeats?: number; cycles?: number | null; hits?: Hit[]; notes?: Note[] };
 
 export function makeTimeline(slots: Slot[], opts: Options = {}): Timeline {
   const starts: number[] = [];
@@ -65,6 +70,7 @@ export function makeTimeline(slots: Slot[], opts: Options = {}): Timeline {
     barBeats: opts.barBeats ?? 4,
     cycles: opts.cycles ?? null,
     hits: opts.hits ?? [],
+    notes: opts.notes ?? [],
   };
 }
 
@@ -236,16 +242,25 @@ export function hitsBefore(tl: Timeline, beat: number): number {
 
 /** from..to 拍のあいだの打点を、周回をまたいで並べる。レーンに描くために使う */
 export function hitsInRange(tl: Timeline, from: number, to: number): Hit[] {
-  if (!tl.hits.length) return [];
-  const out: Hit[] = [];
+  return inRange(tl, tl.hits, from, to);
+}
+
+/** from..to 拍のあいだに鳴り始める主旋律の音 */
+export function notesInRange(tl: Timeline, from: number, to: number): Note[] {
+  return inRange(tl, tl.notes, from, to);
+}
+
+function inRange<T extends { beat: number }>(tl: Timeline, list: T[], from: number, to: number): T[] {
+  if (!list.length) return [];
+  const out: T[] = [];
   const total = totalBeats(tl);
   const last = total == null ? to : Math.min(to, total);
   for (let c = Math.floor(from / tl.cycleBeats); c * tl.cycleBeats <= last; c++) {
     if (c < 0) continue;
     if (tl.cycles != null && c >= tl.cycles) break;
-    for (const h of tl.hits) {
-      const b = c * tl.cycleBeats + h.beat;
-      if (b >= from && b <= last) out.push({ beat: b, dir: h.dir });
+    for (const x of list) {
+      const b = c * tl.cycleBeats + x.beat;
+      if (b >= from && b <= last) out.push({ ...x, beat: b });
     }
   }
   return out;

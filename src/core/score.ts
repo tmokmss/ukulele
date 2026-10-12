@@ -9,11 +9,14 @@
  *   { "title": "きらきら星", "bpm": 90, "strum": "D-DU-UDU",
  *     "sections": [{ "name": "Aメロ", "repeat": 2, "bars": ["C", "F C"] }] }
  *
+ * 主旋律は melody に、bars と同じ数の小節を並べる。"E5:4 G5:2 -:2 ~:8" のように
+ * 「音名:16分音符の数」で書き、"-" は休み、"~" は前の音を伸ばす。
+ *
  * 書くのは Claude で、読めなかったときはこのエラー文をそのまま投げ返して直す。
  * だから「何小節目の何が悪いか」を、途中で止めずに全部返す。
  */
 import { CHORDS, LIB } from './chords';
-import { makeTimeline, type Hit, type Slot, type Stroke, type Timeline } from './timeline';
+import { makeTimeline, type Hit, type Note, type Slot, type Stroke, type Timeline } from './timeline';
 
 export type Score = {
   title: string;
@@ -28,6 +31,8 @@ export type Score = {
   slots: Slot[];
   /** 1周ぶんの打点。ストローク指定が無ければ空 */
   hits: Hit[];
+  /** 1周ぶんの主旋律。書いてなければ空 */
+  notes: Note[];
   /** 1周ぶんの小節数 (セクションの繰り返しを展開したあと) */
   bars: number;
   /** 出てきた順の、使われているコード */
@@ -51,10 +56,15 @@ const MAX_ERRORS = 6;
 const DEFAULT_TITLE = '名前のない楽譜';
 /** 拍をここまで割れる。16分より細かい位置には置けない */
 const GRID_DIV = 4;
+/** 主旋律の休みと、前の音を伸ばす記号 */
+const MELODY_REST = '-';
+const MELODY_TIE = '~';
+const NOTE_NAME = /^([A-G])([#b]?)(-?\d)$/;
+const PITCH_CLASS: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
 const err = (error: string): ParseResult => ({ ok: false, error });
 
-type RawSection = { name: string; bars: string[]; repeat: number; strum: string[] | null };
+type RawSection = { name: string; bars: string[]; repeat: number; strum: string[] | null; melody: string[] | null };
 
 export function parseScore(text: string): ParseResult {
   let raw: unknown;
@@ -96,6 +106,9 @@ export function parseScore(text: string): ParseResult {
 
   const slots: Slot[] = [];
   const hits: Hit[] = [];
+  const notes: Note[] = [];
+  /** "~" で伸ばす相手。休みを挟むと切れる */
+  let lastNote: Note | null = null;
   const errors: string[] = [];
   const unknown = new Set<string>();
   let beat = 0;
@@ -135,6 +148,28 @@ export function parseScore(text: string): ParseResult {
             if (!REST.includes(c)) hits.push({ beat: beat + i * step, dir: c as Stroke });
           }
         }
+        if (sec.melody) {
+          const bar = sec.melody[bi];
+          const tokens = readMelodyBar(bar, beatsPerBar);
+          if (typeof tokens === 'string') push(errors, `${where} の melody「${bar}」: ${tokens}`);
+          else {
+            let at = beat;
+            for (const t of tokens) {
+              if (t.midi === MELODY_TIE) {
+                if (lastNote) lastNote.beats += t.beats;
+                else push(errors, `${where} の melody「${bar}」: 伸ばす元の音がありません。`);
+              } else if (t.midi === MELODY_REST) {
+                lastNote = null;
+              } else {
+                lastNote = { beat: at, beats: t.beats, midi: t.midi };
+                notes.push(lastNote);
+              }
+              at += t.beats;
+            }
+          }
+        } else {
+          lastNote = null;
+        }
         beat += beatsPerBar;
       }
     }
@@ -158,6 +193,7 @@ export function parseScore(text: string): ParseResult {
       repeat,
       slots,
       hits,
+      notes,
       bars: barNo,
       chords: [...new Set(slots.map((s) => s.chord))],
       strum: strums.size === 1 ? ([...strums][0] || null) : null,
@@ -168,7 +204,12 @@ export function parseScore(text: string): ParseResult {
 
 /** 楽譜は「通す回数が決まっているタイムライン」 */
 export function scoreTimeline(score: Score): Timeline {
-  return makeTimeline(score.slots, { barBeats: score.beatsPerBar, cycles: score.repeat, hits: score.hits });
+  return makeTimeline(score.slots, {
+    barBeats: score.beatsPerBar,
+    cycles: score.repeat,
+    hits: score.hits,
+    notes: score.notes,
+  });
 }
 
 function push(errors: string[], msg: string): void {
@@ -184,7 +225,9 @@ function readSections(
   if (!('sections' in obj)) {
     const bars = flattenBars(obj.bars);
     if (typeof bars === 'string') return bars;
-    return [{ name: '', bars, repeat: 1, strum: topStrum }];
+    const melody = readMelody(obj, bars.length);
+    if (typeof melody === 'string') return melody;
+    return [{ name: '', bars, repeat: 1, strum: topStrum, melody }];
   }
   if (!Array.isArray(obj.sections)) return 'sections は配列にしてください。';
   const out: RawSection[] = [];
@@ -206,7 +249,9 @@ function readSections(
       if (!r.ok) return r.error;
       strum = r.strum;
     }
-    out.push({ name, bars, repeat, strum });
+    const melody = readMelody(sec, bars.length);
+    if (typeof melody === 'string') return `${where}: ${melody}`;
+    out.push({ name, bars, repeat, strum, melody });
   }
   return out;
 }
@@ -263,13 +308,49 @@ function divisors(beatsPerBar: number): string {
   return out.join(' / ');
 }
 
+/** 主旋律の小節。書いてあれば bars と同じ数だけ要る */
+function readMelody(obj: Record<string, unknown>, bars: number): string[] | null | string {
+  if (obj.melody == null) return null;
+  const melody = flattenBars(obj.melody, 'melody');
+  if (typeof melody === 'string') return melody;
+  if (melody.length !== bars)
+    return `melody は bars と同じ ${bars} 小節ぶん書いてください (いま ${melody.length} 小節)。休みの小節は "-:16" のように書きます。`;
+  return melody;
+}
+
+type MelodyToken = { midi: number | typeof MELODY_REST | typeof MELODY_TIE; beats: number };
+
+/** 主旋律の1小節を読む。長さの合計が、ちょうど1小節にならないと断る */
+function readMelodyBar(bar: string, beatsPerBar: number): MelodyToken[] | string {
+  const out: MelodyToken[] = [];
+  let sixteenths = 0;
+  for (const token of bar.split(/\s+/).filter(Boolean)) {
+    const [name, len = '1'] = token.split(':');
+    const n = Number(len);
+    if (!Number.isInteger(n) || n < 1) return `「${token}」の長さは 1 以上の整数 (16分音符の数) にしてください。`;
+    sixteenths += n;
+    const beats = n / GRID_DIV;
+    if (name === MELODY_REST || name === MELODY_TIE) {
+      out.push({ midi: name, beats });
+      continue;
+    }
+    const m = NOTE_NAME.exec(name);
+    if (!m) return `「${token}」が読めません。音名は "C5" "F#4" "Bb4"、休みは "-"、伸ばすのは "~" です。`;
+    const midi = (Number(m[3]) + 1) * 12 + PITCH_CLASS[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+    out.push({ midi, beats });
+  }
+  const want = beatsPerBar * GRID_DIV;
+  if (sixteenths !== want) return `長さの合計が16分音符 ${sixteenths} 個です。1小節は ${want} 個です。`;
+  return out;
+}
+
 /** 小節は配列でも1本の文字列でもよく、どちらも「|」で区切れる */
-function flattenBars(value: unknown): string[] | string {
+function flattenBars(value: unknown, key = 'bars'): string[] | string {
   const list = Array.isArray(value) ? value : [value];
   const out: string[] = [];
   for (let i = 0; i < list.length; i++) {
     const v = list[i];
-    if (typeof v !== 'string') return `bars の ${i + 1} 番目が文字列ではありません。"C" のように書いてください。`;
+    if (typeof v !== 'string') return `${key} の ${i + 1} 番目が文字列ではありません。`;
     for (const bar of v.split('|')) {
       const t = bar.trim();
       if (t) out.push(t);

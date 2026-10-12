@@ -281,6 +281,45 @@ describe('セクション', () => {
   });
 });
 
+describe('主旋律', () => {
+  it('「音名:16分音符の数」を拍の上に並べる', () => {
+    const s = ok('{"bars":["C"],"melody":["C4:4 E4:2 -:2 G4:8"]}');
+    expect(s.notes).toEqual([
+      { beat: 0, beats: 1, midi: 60 },
+      { beat: 1, beats: 0.5, midi: 64 },
+      { beat: 2, beats: 2, midi: 67 },
+    ]);
+  });
+
+  it('長さを省くと16分、# と b も読む', () => {
+    expect(ok('{"bars":["C"],"melody":["F#4 Bb3 -:14"]}').notes).toEqual([
+      { beat: 0, beats: 0.25, midi: 66 },
+      { beat: 0.25, beats: 0.25, midi: 58 },
+    ]);
+  });
+
+  it('"~" は小節をまたいで前の音を伸ばし、休みを挟むと伸ばせない', () => {
+    expect(ok('{"bars":["C","F"],"melody":["A4:16","~:8 -:8"]}').notes).toEqual([{ beat: 0, beats: 6, midi: 69 }]);
+    expect(ng('{"bars":["C","F"],"melody":["A4:8 -:8","~:16"]}')).toContain('伸ばす元の音がありません');
+  });
+
+  it('セクションの繰り返しにもついていく', () => {
+    const s = ok('{"sections":[{"repeat":2,"bars":["C"],"melody":["C5:16"]},{"bars":["F"]}]}');
+    expect(s.notes.map((n) => n.beat)).toEqual([0, 4]);
+    expect(scoreTimeline(s).notes).toEqual(s.notes);
+  });
+
+  it('書かなければ空', () => {
+    expect(ok('{"bars":["C"]}').notes).toEqual([]);
+  });
+
+  it('小節の数や長さが合わないと、どこが違うか言って断る', () => {
+    expect(ng('{"bars":["C","F"],"melody":["C4:16"]}')).toContain('2 小節ぶん');
+    expect(ng('{"sections":[{"name":"サビ","bars":["C"],"melody":["C4:12"]}]}')).toMatch(/サビ 1小節目.*12 個/);
+    expect(ng('{"bars":["C"],"melody":["H4:16"]}')).toContain('「H4:16」が読めません');
+  });
+});
+
 describe('細かい位置', () => {
   it('4拍を8つに割れる (3拍半で次のコードに食い込む)', () => {
     // C - - - - F - -  →  C が5つぶん (2.5拍)、F が3つぶん (1.5拍)
