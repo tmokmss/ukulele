@@ -28,7 +28,7 @@ export const CHORDS: Record<string, [number, number, number, number]> = {
   C7: [0, 0, 0, 1],
   Bb: [3, 2, 1, 1],
   Am7: [0, 0, 0, 0],
-  Fmaj7: [2, 4, 1, 3],
+  Fmaj7: [5, 5, 0, 0],
   G6: [0, 2, 0, 2],
   Dm7: [2, 2, 1, 3],
   Cmaj7: [0, 0, 0, 2],
