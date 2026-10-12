@@ -1,0 +1,17 @@
+{
+  "title": "恋色マスタースパーク",
+  "keywords": ["koiiro master spark", "こいいろますたーすぱーく", "Love-Colored Master Spark", "東方永夜抄", "touhou"],
+  "bpm": 120,
+  "beatsPerBar": 4,
+  "strum": "D-DUD-DU",
+  "sections": [
+    { "name": "イントロ", "repeat": 2, "strum": "D---D---", "bars": ["Am", "F G", "Am", "F G"] },
+    { "name": "Aメロ", "bars": ["Am", "F", "G", "Am", "Am", "F", "C G", "Dm E7"] },
+    { "name": "Bメロ", "bars": ["Am", "F", "G", "Am", "Am", "F", "G", "E7"] },
+    { "name": "サビ1", "bars": ["Am", "Am", "F", "F", "G", "G", "Am", "Am", "F", "F", "G", "G", "F G"] },
+    { "name": "間奏", "repeat": 4, "strum": "D---D---", "bars": ["Am", "F G", "Am", "F G"] },
+    { "name": "つなぎ", "strum": "D---D---", "bars": ["E7", "."] },
+    { "name": "サビ2", "repeat": 4, "bars": ["Am", "Am", "F", "F", "G", "G"] },
+    { "name": "終わり", "strum": "D-DUD-DU | D-------", "bars": ["F G", "Am"] }
+  ]
+}
