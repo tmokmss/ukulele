@@ -1,0 +1,18 @@
+{
+  "title": "少年期",
+  "keywords": ["shounenki", "しょうねんき", "武田鉄矢", "ドラえもん", "のび太の宇宙小戦争"],
+  "bpm": 100,
+  "beatsPerBar": 4,
+  "strum": "D-DUD-DU",
+  "sections": [
+    { "name": "イントロ", "bars": ["Am G", "Am G", "Am G", "Am G", "C F", "Em A"] },
+    { "name": "Aメロ", "bars": ["Dm G", "C Am", "F G", "Am", "Dm E7", "Am C", "F G", "Am"] },
+    { "name": "Bメロ", "bars": ["C F", "Em Am", "F G", "Am", "Dm G", "C Am", "F G", "Am", "Dm E7", "Am Am7"] },
+    { "name": "サビ", "bars": ["F", "G", "C G", "Am G", "F C", "F G", "C G", "Am G", "F C", "G C"] },
+    { "name": "間奏", "bars": ["Am Em", "F C", "Dm C", "Dm G", "Am Em", "F C", "Dm G", "Am", "C F", "Em A"] },
+    { "name": "Aメロ2", "bars": ["Dm G", "C Am", "F G", "Am", "Dm E7", "Am C", "F G", "Am"] },
+    { "name": "Bメロ2", "bars": ["C F", "Em Am", "F G", "Am", "F G", "C Am", "F G", "Am", "Dm E7", "Am Am7"] },
+    { "name": "サビ2", "bars": ["F", "G", "C G", "Am G", "F C", "F G", "C G", "Am G", "F C", "G C"] },
+    { "name": "終わり", "bars": ["C", "F C", "Am G", "Am G", "Am G", "Am G", "Am"] }
+  ]
+}
