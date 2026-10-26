@@ -130,10 +130,10 @@ export class Pluck {
    * ダウンは4弦から1弦へ、アップは1弦から4弦へ、少しずつずらしてなでる。
    * ずらさないと和音が一度に出て、ウクレレというより鍵盤の音になる
    */
-  strum(t: number, midi: number[], dir: Stroke): void {
+  strum(t: number, midi: number[], dir: Stroke, vol: number): void {
     if (dir === 'x') {
       if (!this.mute) this.mute = renderMute(this.ctx);
-      this.fire(t, this.mute, 1);
+      this.fire(t, this.mute, vol);
       return;
     }
     if (midi.length < 4) return;
@@ -143,7 +143,7 @@ export class Pluck {
     order.forEach((s, k) => {
       // アップは弦をなで切らないことが多いので、低い弦ほど弱くする
       const gain = down ? 1 : 0.55 + 0.15 * k;
-      this.fire(t + k * spread, this.buf(midi[s]), gain * 0.9);
+      this.fire(t + k * spread, this.buf(midi[s]), gain * 0.9 * vol);
     });
   }
 
@@ -151,15 +151,16 @@ export class Pluck {
    * 主旋律を1音鳴らす。ウクレレと聞き分けられるよう、弦ではなく三角波で、
    * 音符の長さだけ伸ばす。続く音とつながって聞こえないよう、終わりを少し切る
    */
-  note(t: number, midi: number, dur: number): void {
+  note(t: number, midi: number, dur: number, vol: number): void {
     const o = this.ctx.createOscillator();
     o.type = 'triangle';
     o.frequency.value = freqOf(midi);
     const g = this.ctx.createGain();
     const end = t + Math.max(0.05, dur * 0.9);
+    const peak = 0.5 * vol;
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.5, t + 0.01);
-    g.gain.setValueAtTime(0.5, end - 0.03);
+    g.gain.linearRampToValueAtTime(peak, t + 0.01);
+    g.gain.setValueAtTime(peak, end - 0.03);
     g.gain.linearRampToValueAtTime(0, end);
     o.connect(g);
     g.connect(this.out);

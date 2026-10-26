@@ -81,51 +81,27 @@ export function Controls({ settings, patch, running, mode, scoreReady, hasMelody
         </div>
       )}
 
-      <div className="row">
-        <span className="lbl">クリック音</span>
-        <Segmented
-          label="クリック音"
-          options={[
-            { value: true, label: 'あり' },
-            { value: false, label: 'なし' },
-          ]}
-          value={settings.clickOn}
-          onChange={(v) => patch({ clickOn: v })}
-        />
-      </div>
-
-      <div className="row">
-        <span className="lbl">お手本</span>
-        <Segmented
-          label="お手本"
-          options={[
-            { value: true, label: 'あり' },
-            { value: false, label: 'なし' },
-          ]}
-          value={settings.demoOn}
-          onChange={(v) => patch({ demoOn: v })}
-        />
-      </div>
-
+      <Volume id="click-vol" label="クリック音" value={settings.clickVol} onChange={(v) => patch({ clickVol: v })} />
+      <Volume id="demo-vol" label="お手本" value={settings.demoVol} onChange={(v) => patch({ demoVol: v })} />
       {score && hasMelody && (
-        <div className="row">
-          <span className="lbl">主旋律</span>
-          <Segmented
-            label="主旋律"
-            options={[
-              { value: true, label: 'あり' },
-              { value: false, label: 'なし' },
-            ]}
-            value={settings.melodyOn}
-            onChange={(v) => patch({ melodyOn: v })}
-          />
-        </div>
+        <Volume id="melody-vol" label="主旋律" value={settings.melodyVol} onChange={(v) => patch({ melodyVol: v })} />
       )}
 
       {score && <p className="note">コードの長さと練習の長さは、楽譜が決めます。テンポだけ変えられます。</p>}
-      {(settings.demoOn || (score && hasMelody && settings.melodyOn)) && (
+      {(settings.demoVol > 0 || (score && hasMelody && settings.melodyVol > 0)) && (
         <p className="note warn">お手本と主旋律はイヤホンで聞いてください。スピーカーだとマイクが拾います。</p>
       )}
     </section>
+  );
+}
+
+type VolumeProps = { id: string; label: string; value: number; onChange: (v: number) => void };
+
+function Volume({ id, label, value, onChange }: VolumeProps) {
+  return (
+    <div className="row">
+      <label htmlFor={id}>{label}</label>
+      <input type="range" id={id} min={0} max={2} step={0.01} value={value} onChange={(e) => onChange(+e.target.value)} />
+    </div>
   );
 }

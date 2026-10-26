@@ -9,11 +9,12 @@ export type Settings = {
   bpc: number;
   /** 練習時間 (秒)。0 は「止めるまで」 */
   sessionSec: number;
-  clickOn: boolean;
-  /** お手本を鳴らすか。鳴らすとマイクが拾うので、イヤホンが要る */
-  demoOn: boolean;
-  /** 楽譜に主旋律があれば、それも鳴らすか。お手本と同じくイヤホンが要る */
-  melodyOn: boolean;
+  /** 音量は 0〜2。1 がもとの大きさで、0 は鳴らさない */
+  clickVol: number;
+  /** お手本の音量。鳴らすとマイクが拾うので、イヤホンが要る */
+  demoVol: number;
+  /** 楽譜に主旋律があれば、その音量。お手本と同じくイヤホンが要る */
+  melodyVol: number;
   /** 入出力の遅延補正 (ms)。null はマイク接続時に自動推定する */
   calibMs: number | null;
   /** オンセット検出の感度 1..10 */
