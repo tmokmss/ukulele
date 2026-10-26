@@ -14,6 +14,8 @@ export type Settings = {
   demoOn: boolean;
   /** 楽譜に主旋律があれば、それも鳴らすか。お手本と同じくイヤホンが要る */
   melodyOn: boolean;
+  /** 主旋律の音量。1 で既定の大きさ */
+  melodyVol: number;
   /** 入出力の遅延補正 (ms)。null はマイク接続時に自動推定する */
   calibMs: number | null;
   /** オンセット検出の感度 1..10 */

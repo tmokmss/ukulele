@@ -414,7 +414,7 @@ export class TrainerEngine {
       if (n.beat >= k + 1 - 1e-9) continue;
       if (n.beat < run.liveBeat) continue;
       if (endBeat != null && n.beat >= endBeat) continue;
-      pluck.note(run.t0 + n.beat * run.beatDur, n.midi, n.beats * run.beatDur);
+      pluck.note(run.t0 + n.beat * run.beatDur, n.midi, n.beats * run.beatDur, this.settings.melodyVol);
     }
   }
 

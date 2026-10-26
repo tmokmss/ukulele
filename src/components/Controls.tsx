@@ -122,6 +122,22 @@ export function Controls({ settings, patch, running, mode, scoreReady, hasMelody
         </div>
       )}
 
+      {score && hasMelody && settings.melodyOn && (
+        <div className="row">
+          <label htmlFor="melody-vol">主旋律の音量</label>
+          <input
+            type="range"
+            id="melody-vol"
+            min={0.25}
+            max={2}
+            step={0.25}
+            value={settings.melodyVol}
+            onChange={(e) => patch({ melodyVol: +e.target.value })}
+          />
+          <output htmlFor="melody-vol">{Math.round(settings.melodyVol * 100)}%</output>
+        </div>
+      )}
+
       {score && <p className="note">コードの長さと練習の長さは、楽譜が決めます。テンポだけ変えられます。</p>}
       {(settings.demoOn || (score && hasMelody && settings.melodyOn)) && (
         <p className="note warn">お手本と主旋律はイヤホンで聞いてください。スピーカーだとマイクが拾います。</p>
