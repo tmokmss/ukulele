@@ -130,10 +130,10 @@ export class Pluck {
    * ダウンは4弦から1弦へ、アップは1弦から4弦へ、少しずつずらしてなでる。
    * ずらさないと和音が一度に出て、ウクレレというより鍵盤の音になる
    */
-  strum(t: number, midi: number[], dir: Stroke): void {
+  strum(t: number, midi: number[], dir: Stroke, vol: number): void {
     if (dir === 'x') {
       if (!this.mute) this.mute = renderMute(this.ctx);
-      this.fire(t, this.mute, 1);
+      this.fire(t, this.mute, vol);
       return;
     }
     if (midi.length < 4) return;
@@ -143,7 +143,7 @@ export class Pluck {
     order.forEach((s, k) => {
       // アップは弦をなで切らないことが多いので、低い弦ほど弱くする
       const gain = down ? 1 : 0.55 + 0.15 * k;
-      this.fire(t + k * spread, this.buf(midi[s]), gain * 0.9);
+      this.fire(t + k * spread, this.buf(midi[s]), gain * 0.9 * vol);
     });
   }
 

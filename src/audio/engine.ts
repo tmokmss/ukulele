@@ -364,7 +364,7 @@ export class TrainerEngine {
     o.frequency.value = accent ? 2600 : 2000;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(accent ? 0.5 : 0.28, t + 0.004);
+    g.gain.linearRampToValueAtTime((accent ? 0.5 : 0.28) * this.settings.clickVol, t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.05);
     o.connect(g);
     g.connect(ctx.destination);
@@ -388,7 +388,7 @@ export class TrainerEngine {
     const at = (beat: number, dir: Stroke): void => {
       const p = placeSlot(tl, slotIndexAt(tl, beat));
       if (!p) return;
-      pluck.strum(run.t0 + beat * run.beatDur, chordMidi(p.chord), dir);
+      pluck.strum(run.t0 + beat * run.beatDur, chordMidi(p.chord), dir, this.settings.demoVol);
     };
 
     if (!tl.hits.length) {
@@ -430,10 +430,10 @@ export class TrainerEngine {
       const t = run.t0 + k * run.beatDur;
       if (endBeat == null || k < endBeat) {
         // カウントインは頭だけアクセント。本番に入ったら小節の頭で鳴らす
-        if (this.settings.clickOn) this.click(t, k >= run.liveBeat ? k % barBeats === 0 : k === run.leadStart);
+        if (this.settings.clickVol > 0) this.click(t, k >= run.liveBeat ? k % barBeats === 0 : k === run.leadStart);
         // カウントイン中は鳴らさない。お手本より先に自分で数えてもらう
-        if (this.settings.demoOn && k >= run.liveBeat) this.demo(k);
-        if (this.settings.melodyOn && k >= run.liveBeat) this.melody(k);
+        if (this.settings.demoVol > 0 && k >= run.liveBeat) this.demo(k);
+        if (this.settings.melodyVol > 0 && k >= run.liveBeat) this.melody(k);
       }
       run.nextK++;
     }
