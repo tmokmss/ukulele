@@ -101,7 +101,7 @@ function Volume({ id, label, value, onChange }: VolumeProps) {
   return (
     <div className="row">
       <label htmlFor={id}>{label}</label>
-      <input type="range" id={id} min={0} max={1} step={0.01} value={value} onChange={(e) => onChange(+e.target.value)} />
+      <input type="range" id={id} min={0} max={2} step={0.01} value={value} onChange={(e) => onChange(+e.target.value)} />
     </div>
   );
 }

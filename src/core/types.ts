@@ -9,7 +9,7 @@ export type Settings = {
   bpc: number;
   /** 練習時間 (秒)。0 は「止めるまで」 */
   sessionSec: number;
-  /** 音量は 0〜1。0 は鳴らさない */
+  /** 音量は 0〜2。1 がもとの大きさで、0 は鳴らさない */
   clickVol: number;
   /** お手本の音量。鳴らすとマイクが拾うので、イヤホンが要る */
   demoVol: number;
