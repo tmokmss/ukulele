@@ -24,6 +24,7 @@ import { clearHistory, loadHistory, loadSettings, pushHistory, saveSettings } fr
 import { buildTimeline, canJudgeChords, placeSlot, planEnd, slotIndexAt } from './core/timeline';
 import type { PracticeMode, Settings, TickInfo } from './core/types';
 import { useEngine, useFrame } from './hooks/useEngine';
+import { useWakeLock } from './hooks/useWakeLock';
 import { useHashView } from './hooks/useHashView';
 
 /** 自動補正に使うには、これだけのチェンジが拾えている必要がある */
@@ -114,6 +115,7 @@ export default function App() {
   }, [engine]);
   useEffect(() => engine.on('running', setRunning), [engine]);
   useEffect(() => engine.on('paused', setPaused), [engine]);
+  useWakeLock(running);
   // 位置が飛んだら、その先のカードに残っている採点を消す。弾き直すぶんは、これからの結果で付け直す
   useEffect(
     () =>
